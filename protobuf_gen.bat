@@ -1,0 +1,1 @@
+hl2sdk\devtools\bin\protoc.exe --proto_path=hl2sdk/thirdparty/protobuf-3.21.8/src --proto_path=hl2sdk/common --cpp_out=hl2sdk/common hl2sdk/common/network_connection.proto
