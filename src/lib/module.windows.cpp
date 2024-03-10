@@ -1,5 +1,7 @@
-#include <format>
 #ifdef WINDOWS
+#include <format>
+#include <print>
+
 #include "address.hpp"
 #include "module.hpp"
 
@@ -21,6 +23,7 @@ arisu::impl::Module::Module(std::string_view str, const FindPatternCallbackFn& f
 void arisu::impl::Module::GetModuleNfo(std::string_view mod)
 {
     if (module_list.empty())
+    [[unlikely]]
     {
         const auto pteb = reinterpret_cast<PTEB>(__readgsqword(reinterpret_cast<DWORD_PTR>(&static_cast<NT_TIB*>(nullptr)->Self)));
         const auto peb  = pteb->ProcessEnvironmentBlock;
@@ -33,7 +36,8 @@ void arisu::impl::Module::GetModuleNfo(std::string_view mod)
 
             std::string name(w_name.begin(), w_name.end());
 
-            if (!name.contains("game\\") || name.contains("metamod"))
+            // only need game dlls, do not need plugin (including metamod) dlls
+            if (!name.contains("game\\") || name.contains("addons"))
                 continue;
 
             auto& mod_info = module_list.emplace_back();
@@ -65,8 +69,9 @@ void arisu::impl::Module::GetModuleNfo(std::string_view mod)
         return;
 
     this->_base_address = it->second;
-    this->_size        = nt_header->OptionalHeader.SizeOfImage;
-    auto section       = IMAGE_FIRST_SECTION(nt_header);
+    this->_size         = nt_header->OptionalHeader.SizeOfImage;
+
+    auto section = IMAGE_FIRST_SECTION(nt_header);
 
     for (auto i = 0; i < nt_header->FileHeader.NumberOfSections; i++, section++)
     {
@@ -96,6 +101,7 @@ arisu::Address arisu::impl::Module::FindPattern(std::string_view pattern) const
         {
             if (_find_pattern_callback)
                 _find_pattern_callback(pattern, result, _base_address);
+
             if (result.has_value())
                 return segment.address + result.value();
         }
@@ -133,22 +139,13 @@ void arisu::impl::Module::DumpExports(std::uintptr_t module_base)
         return;
 
     auto export_directory = reinterpret_cast<IMAGE_EXPORT_DIRECTORY*>(_base_address + export_address_rva);
-    const auto names      = reinterpret_cast<uintptr_t*>(_base_address + export_directory->AddressOfNames);
-    const auto addresses  = reinterpret_cast<uintptr_t*>(_base_address + export_directory->AddressOfFunctions);
+    const auto names      = reinterpret_cast<uint32_t*>(_base_address + export_directory->AddressOfNames);
+    const auto addresses  = reinterpret_cast<uint32_t*>(_base_address + export_directory->AddressOfFunctions);
     const auto ordinals   = reinterpret_cast<std::uint16_t*>(_base_address + export_directory->AddressOfNameOrdinals);
 
     for (auto i = 0ull; i < export_directory->NumberOfNames; i++)
     {
-        const auto addr = _base_address + names[i];
-
-        // HACK FIX, some modules are acting weird
-        MEMORY_BASIC_INFORMATION mbi{};
-        VirtualQuery(reinterpret_cast<LPCVOID>(addr), &mbi, 100);
-        if (mbi.State != MEM_COMMIT || mbi.Protect == PAGE_NOACCESS)
-            continue;
-
-        const auto export_name = reinterpret_cast<const char*>(addr);
-
+        const auto export_name = reinterpret_cast<const char*>(_base_address + names[i]);
         const auto address = module_base + addresses[ordinals[i]];
 
         if (address >= reinterpret_cast<uintptr_t>(export_directory) && address < reinterpret_cast<uintptr_t>(export_directory) + export_size)
