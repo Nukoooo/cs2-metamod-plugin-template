@@ -43,7 +43,7 @@ windows.compile-definitions = ["WIN32", "WINDOWS"]
 msvc.compile-definitions = ["COMPILER_MSVC64", "COMPILER_MSVC", "NOMINMAX", "MSVC"]
 gcc.compile-definitions = ["GCC"]
 clang.compile-definitions = ["CLANG"]
-msvc.private-compile-options = ["/MP", "/permissive-", "/utf-8"]
+msvc.private-compile-options = ["/MP", "/permissive-", "/utf-8", "/MT$<$<CONFIG:Debug>:d>"]
 
 link-libraries = ["hl2sdk::hl2sdk", "mmsdk::mmsdk"]
 windows.link-libraries = [

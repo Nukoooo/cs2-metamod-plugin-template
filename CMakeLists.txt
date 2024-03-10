@@ -119,6 +119,7 @@ if(MSVC) # msvc
 		"/MP"
 		"/permissive-"
 		"/utf-8"
+		"/MT$<$<CONFIG:Debug>:d>"
 	)
 endif()
 

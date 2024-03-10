@@ -31,15 +31,12 @@ namespace arisu::impl
 
     private:
         std::vector<Segments> _segments{};
-        std::uintptr_t _baseAddress{};
+        std::uintptr_t _base_address{};
         std::size_t _size{};
-
-        void* _handle{};
-        void get_module_nfo(std::string_view mod = "");
-        bool _loaded{};
         FindPatternCallbackFn _find_pattern_callback;
-
         std::unordered_map<std::uint64_t, std::uintptr_t> _exports {};
+
+        void GetModuleNfo(std::string_view mod = "");
 
     public:
         Module()                         = default;
@@ -51,24 +48,24 @@ namespace arisu::impl
         explicit Module(std::string_view str, const FindPatternCallbackFn& find_pattern_callback = nullptr);
 
         // get rwx segments of a module
-        std::vector<Segments>& get_segments()
+        const std::vector<Segments>& GetSegments() const
         {
             return _segments;
         }
 
         // get base address of a module
-        [[nodiscard]] std::uintptr_t base() const
+        [[nodiscard]] std::uintptr_t Base() const
         {
-            return _baseAddress;
+            return _base_address;
         }
 
-        [[nodiscard]] Address find_pattern(std::string_view pattern) const;
+        [[nodiscard]] Address FindPattern(std::string_view pattern) const;
 
-        void* get_proc(std::string_view proc_name) const;
-        void* get_proc(std::uint64_t proc_name_hash) const;
+        void* GetProc(std::string_view proc_name) const;
+        void* GetProc(std::uint64_t proc_name_hash) const;
 
     private:
-        void dump_exports(std::uintptr_t module_base);
-        std::uintptr_t get_export(std::uintptr_t module_base, const std::string& name = "");
+        void DumpExports(std::uintptr_t module_base);
+        std::uintptr_t GetExport(std::uintptr_t module_base, const std::string& name = "");
     };
 }
