@@ -14,12 +14,12 @@ Plugin::Plugin(const LoggingChannelID_t logging)
 
 bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool late)
 {
-    PLUGIN_SAVEVARS();
+    PLUGIN_SAVEVARS()
 
     _metamod = ismm;
-
-    std::println("Plogon Loaded");
     
+    _metamod->AddListener(this, this);
+
     return true;
 }
 

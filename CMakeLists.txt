@@ -64,7 +64,14 @@ target_include_directories(hl2sdk INTERFACE
 
 # Target: plugin
 set(plugin_SOURCES
+	"src/lib/module.windows.cpp"
+	"src/lib/pattern.cpp"
 	"src/plugin.cpp"
+	"src/lib/address.hpp"
+	"src/lib/fnv1a_hash.hpp"
+	"src/lib/module.hpp"
+	"src/lib/pattern.hpp"
+	"src/lib/simd.hpp"
 	"src/plugin.hpp"
 	${protobuf_output_stamp}
 	cmake.toml
@@ -75,13 +82,31 @@ add_library(plugin SHARED)
 target_sources(plugin PRIVATE ${plugin_SOURCES})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${plugin_SOURCES})
 
+if(WIN32) # windows
+	target_compile_definitions(plugin PUBLIC
+		WIN32
+		WINDOWS
+	)
+endif()
+
 if(MSVC) # msvc
 	target_compile_definitions(plugin PUBLIC
 		COMPILER_MSVC64
-		WIN32
-		WINDOWS
 		COMPILER_MSVC
 		NOMINMAX
+		MSVC
+	)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "GNU") # gcc
+	target_compile_definitions(plugin PUBLIC
+		GCC
+	)
+endif()
+
+if((CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$") OR (CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$")) # clang
+	target_compile_definitions(plugin PUBLIC
+		CLANG
 	)
 endif()
 
@@ -97,11 +122,6 @@ if(MSVC) # msvc
 	)
 endif()
 
-target_link_libraries(plugin PUBLIC
-	hl2sdk::hl2sdk
-	mmsdk::mmsdk
-)
-
 if(WIN32) # windows
 	target_link_libraries(plugin PUBLIC
 		"${CMAKE_CURRENT_SOURCE_DIR}/hl2sdk/lib/public/win64/interfaces.lib"
@@ -111,3 +131,8 @@ if(WIN32) # windows
 		"${CMAKE_CURRENT_SOURCE_DIR}/hl2sdk/lib/public/win64/mathlib.lib"
 	)
 endif()
+
+target_link_libraries(plugin PUBLIC
+	hl2sdk::hl2sdk
+	mmsdk::mmsdk
+)
