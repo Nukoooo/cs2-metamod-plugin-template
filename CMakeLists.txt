@@ -64,14 +64,17 @@ target_include_directories(hl2sdk INTERFACE
 
 # Target: plugin
 set(plugin_SOURCES
+	"src/lib/module.linux.cpp"
 	"src/lib/module.windows.cpp"
 	"src/lib/pattern.cpp"
+	"src/modules.cpp"
 	"src/plugin.cpp"
 	"src/lib/address.hpp"
 	"src/lib/fnv1a_hash.hpp"
 	"src/lib/module.hpp"
 	"src/lib/pattern.hpp"
 	"src/lib/simd.hpp"
+	"src/modules.hpp"
 	"src/plugin.hpp"
 	${protobuf_output_stamp}
 	cmake.toml

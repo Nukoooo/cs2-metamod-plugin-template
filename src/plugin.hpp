@@ -1,6 +1,4 @@
 #pragma once
-#include <utility>
-#include <vector>
 
 #include <ISmmPlugin.h>
 
@@ -8,10 +6,11 @@
 #include <igameeventsystem.h>  // Required by igameevents.h
 #include <igameevents.h>
 
-class Plugin final : public ISmmPlugin, public IMetamodListener, public IGameEventListener2
+class Plugin : public ISmmPlugin, public IMetamodListener, public IGameEventListener2
 {
 public:
     explicit Plugin(LoggingChannelID_t logging);
+    ~Plugin();
     // no move or copy
     Plugin(Plugin&&)      = delete;
     Plugin(const Plugin&) = delete;
@@ -62,6 +61,6 @@ public:
     void FireGameEvent(IGameEvent* event) override;
 
 private:
-    ISmmAPI* _metamod {};
+    ISmmAPI* _metamod{};
     LoggingChannelID_t _log;
 };
