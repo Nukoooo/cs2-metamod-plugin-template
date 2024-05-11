@@ -90,7 +90,7 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
         auto is_dynamic_section = type == PT_DYNAMIC;
         if (is_dynamic_section)
         {
-            DumpSymbols(reinterpret_cast<void *>(address));
+            DumpExports(reinterpret_cast<void *>(address));
             continue;
         }
 
@@ -111,23 +111,21 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
         auto &segment = _segments.emplace_back();
 
         segment.address = address;
-        segment.bytes.reserve(size);
+        segment.data.reserve(size);
 
-        if !(read_from_disk)
+        if (!read_from_disk)
         {
-            segment.bytes.assign(&data[0], &data[size]);
+            segment.data.assign(&data[0], &data[size]);
             continue;
 
             return;
         }
 
-        if (auto bytes = GetOriginalBytes(disk_data, address - m_baseAddress, size))
+        if (auto bytes = GetOriginalBytes(disk_data, address - _base_address, size))
         {
-            segment.bytes = bytes.value();
+            segment.data = bytes.value();
         }
     }
-
-    DumpExports(_base_address);
 }
 
 Address Module::FindPattern(std::string_view pattern) const
@@ -139,8 +137,8 @@ Address Module::FindPattern(std::string_view pattern) const
             if (_find_pattern_callback)
                 _find_pattern_callback(pattern, result, _base_address);
 
-            if (result.has_value())
-                return segment.address + result.value();
+            if (result.is_valid())
+                return segment.address + result.ptr;
         }
     }
 

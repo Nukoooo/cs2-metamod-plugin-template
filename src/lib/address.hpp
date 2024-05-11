@@ -72,7 +72,7 @@ struct AddressBase
     }
 
     template <typename T = AddressBase<type>>
-    T rel(ptrdiff_t offset = 0x1)
+    T rel(std::intptr_t offset = 0x1)
     {
         type base                   = ptr + offset;
         const auto relative_address = *reinterpret_cast<std::int32_t*>(base);
@@ -114,7 +114,7 @@ struct AddressBase
     }
 
     template <typename T = AddressBase<type>>
-    T offset(ptrdiff_t offset)
+    T offset(std::intptr_t offset)
     {
         return T(ptr + offset);
     }

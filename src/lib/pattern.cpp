@@ -1,5 +1,6 @@
 #include "pattern.hpp"
 #include "simd.hpp"
+#include <algorithm>
 
 Address pattern::impl::find_std(std::uint8_t* data, std::size_t size, const std::vector<HexData>& pattern) noexcept
 {
@@ -31,21 +32,19 @@ Address pattern::impl::find_std(std::uint8_t* data, std::size_t size, const std:
     return {};
 }
 
-std::expected<Address, pattern::Status> pattern::find(const std::vector<std::uint8_t>& data, const std::vector<impl::HexData>& pattern) noexcept
+Address pattern::find(const std::vector<std::uint8_t>& data, const std::vector<impl::HexData>& pattern) noexcept
 {
     auto result = impl::find_std(const_cast<std::uint8_t*>(data.data()), data.size(), pattern);
-    if (!result.is_valid())
-        return std::unexpected { NoResult };
 
     return result;
 }
 
-std::expected<Address, pattern::Status> pattern::find(const std::vector<std::uint8_t>& data, const impl::Pattern<>& pattern) noexcept
+Address pattern::find(const std::vector<std::uint8_t>& data, const impl::Pattern<>& pattern) noexcept
 {
     return find(data, pattern.bytes);
 }
 
-std::expected<Address, pattern::Status> pattern::find(const std::vector<std::uint8_t>& data, std::string_view pattern) noexcept
+Address pattern::find(const std::vector<std::uint8_t>& data, std::string_view pattern) noexcept
 {
     return pattern::find(data, type(pattern));
 }

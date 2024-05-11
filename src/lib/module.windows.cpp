@@ -133,8 +133,8 @@ Address Module::FindPattern(std::string_view pattern) const
             if (_find_pattern_callback)
                 _find_pattern_callback(pattern, result, _base_address);
 
-            if (result.has_value())
-                return segment.address + result.value();
+            if (result.is_valid())
+                return segment.address + result.ptr;
         }
     }
 

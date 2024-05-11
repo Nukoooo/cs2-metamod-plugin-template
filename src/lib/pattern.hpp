@@ -125,9 +125,9 @@ namespace pattern
         Address find_std(std::uint8_t* data, std::size_t size, const std::vector<HexData>& pattern) noexcept;
     }
 
-    std::expected<Address, Status> find(const std::vector<std::uint8_t>& data, const impl::Pattern<>& pattern) noexcept;
-    std::expected<Address, Status> find(const std::vector<std::uint8_t>& data, const std::vector<impl::HexData>& pattern) noexcept;
-    std::expected<Address, Status> find(const std::vector<std::uint8_t>& data, std::string_view pattern) noexcept;
+    Address find(const std::vector<std::uint8_t>& data, const impl::Pattern<>& pattern) noexcept;
+    Address find(const std::vector<std::uint8_t>& data, const std::vector<impl::HexData>& pattern) noexcept;
+    Address find(const std::vector<std::uint8_t>& data, std::string_view pattern) noexcept;
 
     using type = impl::Pattern<' ', '?'>;
 }

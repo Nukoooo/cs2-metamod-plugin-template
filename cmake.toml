@@ -5,6 +5,17 @@ cmake-after="""
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(SAFETYHOOK_FETCH_ZYDIS ON)
 set(protobuf_USE_EXTERNAL_GTEST OFF)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
+endif()
+
+
+if(UNIX AND NOT APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+endif()
+
 """
 
 [fetch-content.expected]
@@ -78,15 +89,15 @@ sources = [
   "src/**.hpp",
   "src/**.h",
 ]
-include-directories = ["safetyhook/"]
+include-directories = ["safetyhook"]
 compile-features = ["cxx_std_23"]
 windows.compile-definitions = ["WIN32", "WINDOWS"]
-linux.compile-definitions = ["LINUX"]
+linux.compile-definitions = ["LINUX", "POSIX", "_LINUX", "PLATFORM_64BITS"]
 msvc.compile-definitions = ["COMPILER_MSVC64", "COMPILER_MSVC", "NOMINMAX", "MSVC"]
-gcc.compile-definitions = ["GCC", "COMPILER_GCC"]
+gcc.compile-definitions = ["GCC", "COMPILER_GCC", "_GLIBCXX_USE_CXX11_ABI=0"]
 clang.compile-definitions = ["CLANG", "COMPILER_CLANG"]
 msvc.private-compile-options = ["/MP", "/permissive-", "/utf-8", "/MT$<$<CONFIG:Debug>:d>"]
-clang.private-compile-options = ["-std=libc++"]
+clang.private-compile-options = ["-std=libc++", "-fPIC"]
 
 link-libraries = ["hl2sdk::hl2sdk", "mmsdk::mmsdk", "safetyhook::safetyhook", "spdlog::spdlog", "libprotobuf",]
 windows.link-libraries = [

@@ -8,7 +8,6 @@
 #include <vector>
 #include <functional>
 
-
 struct Segments
 {
     Segments() = default;
@@ -25,7 +24,7 @@ struct Segments
 class Module
 {
 public:
-    using FindPatternCallbackFn = std::function<void(std::string_view, std::expected<Address, pattern::Status>, std::uintptr_t)>;
+    using FindPatternCallbackFn = std::function<void(std::string_view, Address, std::uintptr_t)>;
 
 private:
     std::vector<Segments> _segments{};

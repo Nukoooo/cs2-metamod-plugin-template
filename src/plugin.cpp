@@ -4,7 +4,6 @@
 #include "entity2/entitykeyvalues.h"
 #include "protobuf/cs_usercmd.pb.h"
 
-#include <print>
 #include <safetyhook.hpp>
 
 DEFINE_LOGGING_CHANNEL_NO_TAGS(LOG_CS2S, "Plogon", 0, LV_MAX, Color());

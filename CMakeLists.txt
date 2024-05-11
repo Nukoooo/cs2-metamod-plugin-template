@@ -30,6 +30,16 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(SAFETYHOOK_FETCH_ZYDIS ON)
 set(protobuf_USE_EXTERNAL_GTEST OFF)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
+endif()
+
+
+if(UNIX AND NOT APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+endif()
+
 include(FetchContent)
 
 # Fix warnings about DOWNLOAD_EXTRACT_TIMESTAMP
@@ -37,7 +47,7 @@ if(POLICY CMP0135)
 	cmake_policy(SET CMP0135 NEW)
 endif()
 message(STATUS "Fetching expected (3f0ca7b19253129700a073abfa6d8638d9f7c80c)...")
-FetchContent_Declare(expected SYSTEM
+FetchContent_Declare(expected
 	GIT_REPOSITORY
 		"https://github.com/TartanLlama/expected"
 	GIT_TAG
@@ -46,7 +56,7 @@ FetchContent_Declare(expected SYSTEM
 FetchContent_MakeAvailable(expected)
 
 message(STATUS "Fetching spdlog (v1.14.1)...")
-FetchContent_Declare(spdlog SYSTEM
+FetchContent_Declare(spdlog
 	GIT_REPOSITORY
 		"https://github.com/gabime/spdlog"
 	GIT_TAG
@@ -57,7 +67,7 @@ FetchContent_Declare(spdlog SYSTEM
 FetchContent_MakeAvailable(spdlog)
 
 message(STATUS "Fetching protobuf (0a02547b680a319e73fd04d9efff88d901c3eaa8)...")
-FetchContent_Declare(protobuf SYSTEM
+FetchContent_Declare(protobuf
 	GIT_REPOSITORY
 		"https://github.com/noahbkim/cs2s-protobuf"
 	GIT_TAG
@@ -229,6 +239,9 @@ endif()
 if(CMAKE_SYSTEM_NAME MATCHES "Linux") # linux
 	target_compile_definitions(plugin PUBLIC
 		LINUX
+		POSIX
+		_LINUX
+		PLATFORM_64BITS
 	)
 endif()
 
@@ -245,6 +258,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "GNU") #
 	target_compile_definitions(plugin PUBLIC
 		GCC
 		COMPILER_GCC
+		_GLIBCXX_USE_CXX11_ABI=0
 	)
 endif()
 
@@ -271,11 +285,12 @@ endif()
 if((CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$") OR (CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$")) # clang
 	target_compile_options(plugin PRIVATE
 		-std=libc++
+		-fPIC
 	)
 endif()
 
 target_include_directories(plugin PUBLIC
-	"safetyhook/"
+	safetyhook
 )
 
 if(WIN32) # windows
