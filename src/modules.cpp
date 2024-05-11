@@ -2,9 +2,9 @@
 
 void mods::Init()
 {
-    server        = arisu::impl::Module("server");
-    engine        = arisu::impl::Module("engine2");
-    network       = arisu::impl::Module("networksystem");
-    tier0         = arisu::impl::Module("tier0");
-    schema_system = arisu::impl::Module("schemasystem");
+    server        = Module("server", true);
+    engine        = Module("engine2", true);
+    tier0         = Module("tier0");
+    network       = Module("networksystem");
+    schema_system = Module("schemasystem");
 }

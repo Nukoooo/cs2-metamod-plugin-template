@@ -6,9 +6,9 @@ namespace mods
 {
     void Init();
 
-    inline arisu::impl::Module server{};
-    inline arisu::impl::Module engine{};
-    inline arisu::impl::Module tier0{};
-    inline arisu::impl::Module network{};
-    inline arisu::impl::Module schema_system{};
+    inline Module server{};
+    inline Module engine{};
+    inline Module tier0{};
+    inline Module network{};
+    inline Module schema_system{};
 }

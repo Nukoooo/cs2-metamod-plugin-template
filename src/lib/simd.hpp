@@ -3,7 +3,7 @@
 #include <immintrin.h>
 #include <type_traits>
 
-namespace arisu::simd
+namespace simd
 {
 #if defined(GCC)
     #pragma GCC diagnostic push

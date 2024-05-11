@@ -26,6 +26,104 @@ endif()
 
 project(cs2-plugin)
 
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+set(SAFETYHOOK_FETCH_ZYDIS ON)
+set(protobuf_USE_EXTERNAL_GTEST OFF)
+
+include(FetchContent)
+
+# Fix warnings about DOWNLOAD_EXTRACT_TIMESTAMP
+if(POLICY CMP0135)
+	cmake_policy(SET CMP0135 NEW)
+endif()
+message(STATUS "Fetching expected (3f0ca7b19253129700a073abfa6d8638d9f7c80c)...")
+FetchContent_Declare(expected SYSTEM
+	GIT_REPOSITORY
+		"https://github.com/TartanLlama/expected"
+	GIT_TAG
+		3f0ca7b19253129700a073abfa6d8638d9f7c80c
+)
+FetchContent_MakeAvailable(expected)
+
+message(STATUS "Fetching spdlog (v1.14.1)...")
+FetchContent_Declare(spdlog SYSTEM
+	GIT_REPOSITORY
+		"https://github.com/gabime/spdlog"
+	GIT_TAG
+		v1.14.1
+	GIT_SHALLOW
+		ON
+)
+FetchContent_MakeAvailable(spdlog)
+
+message(STATUS "Fetching protobuf (0a02547b680a319e73fd04d9efff88d901c3eaa8)...")
+FetchContent_Declare(protobuf SYSTEM
+	GIT_REPOSITORY
+		"https://github.com/noahbkim/cs2s-protobuf"
+	GIT_TAG
+		0a02547b680a319e73fd04d9efff88d901c3eaa8
+)
+FetchContent_MakeAvailable(protobuf)
+
+# Target: safetyhook
+set(safetyhook_SOURCES
+	"safetyhook/safetyhook.cpp"
+	"safetyhook/Zydis.c"
+	cmake.toml
+)
+
+add_library(safetyhook STATIC)
+
+target_sources(safetyhook PRIVATE ${safetyhook_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${safetyhook_SOURCES})
+
+add_library(safetyhook::safetyhook ALIAS safetyhook)
+target_compile_features(safetyhook PUBLIC
+	cxx_std_20
+)
+
+if(MSVC) # msvc
+	target_compile_options(safetyhook PRIVATE
+		"/permissive-"
+		"/W4"
+		"/w14640"
+	)
+endif()
+
+if((CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$") OR (CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$")) # clang
+	target_compile_options(safetyhook PRIVATE
+		-Wall
+		-Wextra
+		-Wshadow
+		-Wnon-virtual-dtor
+		-pedantic
+	)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "GNU") # gcc
+	target_compile_options(safetyhook PRIVATE
+		-Wall
+		-Wextra
+		-Wshadow
+		-Wnon-virtual-dtor
+		-pedantic
+	)
+endif()
+
+target_include_directories(safetyhook PUBLIC
+	"safetyhook/safetyhook.hpp"
+	"safetyhook/Zydis.h"
+)
+
+target_link_libraries(safetyhook PUBLIC
+	tl::expected
+)
+
+set(CMKR_TARGET safetyhook)
+if(SAFETYHOOK_USE_CXXMODULES)
+    target_compile_definitions(safetyhook INTERFACE SAFETYHOOK_USE_CXXMODULES)
+endif()
+
 # Target: mmsdk
 add_library(mmsdk INTERFACE)
 
@@ -64,11 +162,33 @@ target_include_directories(hl2sdk INTERFACE
 
 # Target: plugin
 set(plugin_SOURCES
+	"hl2sdk/tier1/convar.cpp"
+	"hl2sdk/tier1/generichash.cpp"
+	"hl2sdk/tier1/keyvalues3.cpp"
+	"hl2sdk/entity2/entityidentity.cpp"
+	"hl2sdk/entity2/entitysystem.cpp"
+	"hl2sdk/entity2/entitykeyvalues.cpp"
 	"src/lib/module.linux.cpp"
 	"src/lib/module.windows.cpp"
 	"src/lib/pattern.cpp"
 	"src/modules.cpp"
 	"src/plugin.cpp"
+	"src/protobuf/clientmessages.pb.cc"
+	"src/protobuf/cs_gameevents.pb.cc"
+	"src/protobuf/cs_usercmd.pb.cc"
+	"src/protobuf/cstrike15_gcmessages.pb.cc"
+	"src/protobuf/cstrike15_usermessages.pb.cc"
+	"src/protobuf/engine_gcmessages.pb.cc"
+	"src/protobuf/gameevents.pb.cc"
+	"src/protobuf/gcsdk_gcmessages.pb.cc"
+	"src/protobuf/netmessages.pb.cc"
+	"src/protobuf/network_connection.pb.cc"
+	"src/protobuf/networkbasetypes.pb.cc"
+	"src/protobuf/steammessages.pb.cc"
+	"src/protobuf/te.pb.cc"
+	"src/protobuf/usercmd.pb.cc"
+	"src/protobuf/usermessages.pb.cc"
+	"src/interfaces.hpp"
 	"src/lib/address.hpp"
 	"src/lib/fnv1a_hash.hpp"
 	"src/lib/module.hpp"
@@ -76,7 +196,21 @@ set(plugin_SOURCES
 	"src/lib/simd.hpp"
 	"src/modules.hpp"
 	"src/plugin.hpp"
-	${protobuf_output_stamp}
+	"src/protobuf/clientmessages.pb.h"
+	"src/protobuf/cs_gameevents.pb.h"
+	"src/protobuf/cs_usercmd.pb.h"
+	"src/protobuf/cstrike15_gcmessages.pb.h"
+	"src/protobuf/cstrike15_usermessages.pb.h"
+	"src/protobuf/engine_gcmessages.pb.h"
+	"src/protobuf/gameevents.pb.h"
+	"src/protobuf/gcsdk_gcmessages.pb.h"
+	"src/protobuf/netmessages.pb.h"
+	"src/protobuf/network_connection.pb.h"
+	"src/protobuf/networkbasetypes.pb.h"
+	"src/protobuf/steammessages.pb.h"
+	"src/protobuf/te.pb.h"
+	"src/protobuf/usercmd.pb.h"
+	"src/protobuf/usermessages.pb.h"
 	cmake.toml
 )
 
@@ -92,6 +226,12 @@ if(WIN32) # windows
 	)
 endif()
 
+if(CMAKE_SYSTEM_NAME MATCHES "Linux") # linux
+	target_compile_definitions(plugin PUBLIC
+		LINUX
+	)
+endif()
+
 if(MSVC) # msvc
 	target_compile_definitions(plugin PUBLIC
 		COMPILER_MSVC64
@@ -104,12 +244,14 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "GNU") # gcc
 	target_compile_definitions(plugin PUBLIC
 		GCC
+		COMPILER_GCC
 	)
 endif()
 
 if((CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$") OR (CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$")) # clang
 	target_compile_definitions(plugin PUBLIC
 		CLANG
+		COMPILER_CLANG
 	)
 endif()
 
@@ -126,17 +268,38 @@ if(MSVC) # msvc
 	)
 endif()
 
+if((CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$") OR (CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$")) # clang
+	target_compile_options(plugin PRIVATE
+		-std=libc++
+	)
+endif()
+
+target_include_directories(plugin PUBLIC
+	"safetyhook/"
+)
+
 if(WIN32) # windows
 	target_link_libraries(plugin PUBLIC
 		"${CMAKE_CURRENT_SOURCE_DIR}/hl2sdk/lib/public/win64/interfaces.lib"
-		"${CMAKE_CURRENT_SOURCE_DIR}/hl2sdk/lib/public/win64/2015/libprotobuf.lib"
 		"${CMAKE_CURRENT_SOURCE_DIR}/hl2sdk/lib/public/win64/tier0.lib"
 		"${CMAKE_CURRENT_SOURCE_DIR}/hl2sdk/lib/public/win64/tier1.lib"
 		"${CMAKE_CURRENT_SOURCE_DIR}/hl2sdk/lib/public/win64/mathlib.lib"
 	)
 endif()
 
+if(CMAKE_SYSTEM_NAME MATCHES "Linux") # linux
+	target_link_libraries(plugin PUBLIC
+		"${CMAKE_CURRENT_SOURCE_DIR}/hl2sdk/lib/linux64/interfaces.a"
+		"${CMAKE_CURRENT_SOURCE_DIR}/hl2sdk/lib/linux64/libtier0.so"
+		"${CMAKE_CURRENT_SOURCE_DIR}/hl2sdk/lib/linux64/mathlib.a"
+		"${CMAKE_CURRENT_SOURCE_DIR}/hl2sdk/lib/linux64/tier1.a"
+	)
+endif()
+
 target_link_libraries(plugin PUBLIC
 	hl2sdk::hl2sdk
 	mmsdk::mmsdk
+	safetyhook::safetyhook
+	spdlog::spdlog
+	libprotobuf
 )

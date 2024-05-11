@@ -1,7 +1,7 @@
 #include "pattern.hpp"
 #include "simd.hpp"
 
-arisu::Address arisu::pattern::impl::find_std(std::uint8_t* data, std::size_t size, const std::vector<HexData>& pattern) noexcept
+Address pattern::impl::find_std(std::uint8_t* data, std::size_t size, const std::vector<HexData>& pattern) noexcept
 {
     const auto pattern_size = pattern.size();
     std::uint8_t* end       = data + size - pattern_size;
@@ -31,7 +31,7 @@ arisu::Address arisu::pattern::impl::find_std(std::uint8_t* data, std::size_t si
     return {};
 }
 
-std::expected<arisu::Address, arisu::pattern::Status> arisu::pattern::find(const std::vector<std::uint8_t>& data, const std::vector<impl::HexData>& pattern) noexcept
+std::expected<Address, pattern::Status> pattern::find(const std::vector<std::uint8_t>& data, const std::vector<impl::HexData>& pattern) noexcept
 {
     auto result = impl::find_std(const_cast<std::uint8_t*>(data.data()), data.size(), pattern);
     if (!result.is_valid())
@@ -40,12 +40,12 @@ std::expected<arisu::Address, arisu::pattern::Status> arisu::pattern::find(const
     return result;
 }
 
-std::expected<arisu::Address, arisu::pattern::Status> arisu::pattern::find(const std::vector<std::uint8_t>& data, const impl::Pattern<>& pattern) noexcept
+std::expected<Address, pattern::Status> pattern::find(const std::vector<std::uint8_t>& data, const impl::Pattern<>& pattern) noexcept
 {
     return find(data, pattern.bytes);
 }
 
-std::expected<arisu::Address, arisu::pattern::Status> arisu::pattern::find(const std::vector<std::uint8_t>& data, std::string_view pattern) noexcept
+std::expected<Address, pattern::Status> pattern::find(const std::vector<std::uint8_t>& data, std::string_view pattern) noexcept
 {
     return pattern::find(data, type(pattern));
 }

@@ -1,15 +1,13 @@
 #pragma once
 
 #include "address.hpp"
-#include <algorithm>
 #include <optional>
-#include <stdexcept>
 #include <vector>
 #include <array>
 #include <expected>
 #include <ranges>
 
-namespace arisu::pattern
+namespace pattern
 {
     enum Status
     {
