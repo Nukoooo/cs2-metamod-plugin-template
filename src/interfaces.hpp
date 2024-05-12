@@ -1,10 +1,10 @@
 #pragma once
 
-#include <igameevents.h>
+#include "entitysystem.h"
 #include "irecipientfilter.h"
 #include "iserver.h"
 #include "tier1/convar.h"
-#include "entitysystem.h"
+#include <igameevents.h>
 
 inline IVEngineServer2* g_pEngineServer2 = nullptr;
 inline CGlobalVars* gpGlobals = nullptr;

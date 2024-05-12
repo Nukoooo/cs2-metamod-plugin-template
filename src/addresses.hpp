@@ -31,7 +31,7 @@ namespace addresses
 {
     bool Initialize();
 
-    inline void(FASTCALL *NetworkStateChanged)(int64_t chainEntity, int64_t offset, int64_t a3);
-    inline void(FASTCALL *StateChanged)(void *networkTransmitComponent, CEntityInstance *ent, int64_t offset, int16_t a4, int16_t a5);
-    inline void(FASTCALL *CBaseModelEntity_SetModel)(CBaseModelEntity *pModel, const char *szModel);
-}
+    inline void(FASTCALL* NetworkStateChanged)(int64_t chainEntity, int64_t offset, int64_t a3);
+    inline void(FASTCALL* StateChanged)(void* networkTransmitComponent, CEntityInstance* ent, int64_t offset, int16_t a4, int16_t a5);
+    inline void(FASTCALL* CBaseModelEntity_SetModel)(CBaseModelEntity* pModel, const char* szModel);
+}// namespace addresses

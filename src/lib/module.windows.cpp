@@ -66,7 +66,10 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
                                          });
 
     if (it == module_list.end())
-        throw std::runtime_error(std::format("Cannot find any module name that contains {}", mod));
+    {
+        spdlog::error("Cannot find any module name that contains {}", mod);
+        return;
+    }
 
     const auto dos_header = reinterpret_cast<PIMAGE_DOS_HEADER>(it->second);
 
@@ -124,13 +127,14 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
                 segment.data = original_bytes.value();
                 continue;
             }
+            spdlog::error("[{}] Failed to copy bytes in executable section from file, copyting bytes from memory.", _module_name);
         }
 
         const auto data = reinterpret_cast<std::uint8_t*>(start);
         segment.data = std::vector(&data[0], &data[size]);
     }
 
-    DumpExports(reinterpret_cast<void*>(_base_address));
+    // DumpExports(reinterpret_cast<void*>(_base_address));
 }
 
 Address Module::FindPattern(std::string_view pattern) const
@@ -204,7 +208,7 @@ Address Module::FindVtable(const std::string& name)
     auto type_descriptor = FindString(vtable_name, false);
     if (!type_descriptor.is_valid())
     {
-        spdlog::error("Cannot find vtable: {}", vtable_name);
+        spdlog::error("[{}] Cannot find vtable: {}", _module_name, vtable_name);
         return {};
     }
 
@@ -216,11 +220,10 @@ Address Module::FindVtable(const std::string& name)
 
     if (!complete_object_locator.is_valid())
     {
-        spdlog::error("complete_object_locator is invalid");
+        spdlog::error("[{}] complete_object_locator of vtable \"{}\" is invalid", _module_name, vtable_name);
         return {};
     }
 
-    spdlog::info("complete_object_locator: {:#x}", complete_object_locator.ptr - _base_address);
     // check for header offset
     auto header = complete_object_locator.offset(-0xC);
     if (header.deref().cast<std::int32_t>() != 1)

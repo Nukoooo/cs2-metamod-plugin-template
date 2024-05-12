@@ -4,15 +4,11 @@
 #include "gameconfig.hpp"
 #include "interfaces.hpp"
 #include "modules.hpp"
-#include "protobuf/cs_usercmd.pb.h"
 #include "sdk/schema.hpp"
+#include "gamesystem.hpp"
 
-#include "sdk/entity/cbaseentity.h"
 #include "sdk/entity/ccsplayercontroller.h"
 
-#include <cstdio>
-#include <format>
-#include <safetyhook.hpp>
 #include <spdlog/spdlog.h>
 
 DEFINE_LOGGING_CHANNEL_NO_TAGS(LOG_CS2S, "Plogon", 0, LV_MAX, Color());
@@ -22,23 +18,14 @@ class GameSessionConfiguration_t
 };
 
 SH_DECL_HOOK3_void(IServerGameDLL, GameFrame, SH_NOATTRIB, 0, bool, bool, bool);
-
 SH_DECL_HOOK4_void(IServerGameClients, ClientActive, SH_NOATTRIB, 0, CPlayerSlot, bool, const char*, uint64);
-
 SH_DECL_HOOK5_void(IServerGameClients, ClientDisconnect, SH_NOATTRIB, 0, CPlayerSlot, ENetworkDisconnectionReason, const char*, uint64, const char*);
-
 SH_DECL_HOOK4_void(IServerGameClients, ClientPutInServer, SH_NOATTRIB, 0, CPlayerSlot, char const*, int, uint64);
-
 SH_DECL_HOOK1_void(IServerGameClients, ClientSettingsChanged, SH_NOATTRIB, 0, CPlayerSlot);
-
 SH_DECL_HOOK6_void(IServerGameClients, OnClientConnected, SH_NOATTRIB, 0, CPlayerSlot, const char*, uint64, const char*, const char*, bool);
-
 SH_DECL_HOOK6(IServerGameClients, ClientConnect, SH_NOATTRIB, 0, bool, CPlayerSlot, const char*, uint64, const char*, bool, CBufferString*);
-
 SH_DECL_HOOK2(IGameEventManager2, FireEvent, SH_NOATTRIB, 0, bool, IGameEvent*, bool);
-
 SH_DECL_HOOK2_void(IServerGameClients, ClientCommand, SH_NOATTRIB, 0, CPlayerSlot, const CCommand&);
-
 SH_DECL_HOOK3_void(INetworkServerService, StartupServer, SH_NOATTRIB, 0, const GameSessionConfiguration_t&, ISource2WorldSession*, const char*);
 
 Plugin g_plugin(LOG_CS2S);
@@ -96,6 +83,12 @@ bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool l
         return false;
     }
 
+    if (!InitGameSystems())
+    {
+        spdlog::error("Failed to initialize GameSystem");
+        return false;
+    }
+
     SH_ADD_HOOK(IServerGameDLL, GameFrame, g_pSource2Server, SH_MEMBER(this, &Plugin::Hook_GameFrame), true);
     SH_ADD_HOOK(IServerGameClients, ClientActive, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientActive), true);
     SH_ADD_HOOK(IServerGameClients, ClientDisconnect, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientDisconnect), true);
@@ -145,11 +138,6 @@ void Plugin::Hook_ClientActive(CPlayerSlot slot, bool bLoadGame, const char* psz
 void Plugin::Hook_ClientCommand(CPlayerSlot slot, const CCommand& args)
 {
     CCSPlayerController* player = CCSPlayerController::FromSlot(slot);
-    spdlog::info("{}, {}", player->m_iszPlayerName.Get(), args.GetCommandString());
-    auto pawn = player->GetPlayerPawn();
-    if (!pawn)
-        return;
-    pawn->CommitSuicide(true, true);
     // META_CONPRINTF("Hook_ClientCommand(%d, \"%s\")\n", slot, args.GetCommandString());
 }
 

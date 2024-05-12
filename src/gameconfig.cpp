@@ -58,11 +58,6 @@ bool CGameConfig::Init(IFileSystem* filesystem)
     return false;
 }
 
-std::string CGameConfig::GetPath()
-{
-    return m_szPath;
-}
-
 const char* CGameConfig::GetSignature(const std::string& name)
 {
     auto it = m_umSignatures.find(name);
