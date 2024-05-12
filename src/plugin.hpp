@@ -65,29 +65,20 @@ class Plugin : public ISmmPlugin, public IMetamodListener, public IGameEventList
     }
 
     void FireGameEvent(IGameEvent* event) override;
-
     void OnLevelInit(char const* pMapName, char const* pMapEntities, char const* pOldLevel, char const* pLandmarkName, bool loadGame, bool background) override;
-
     void OnLevelShutdown() override;
-
     void Hook_GameFrame(bool simulating, bool bFirstTick, bool bLastTick);
-
     void Hook_ClientActive(CPlayerSlot slot, bool bLoadGame, const char* pszName, uint64 xuid);
-
     void Hook_ClientDisconnect(CPlayerSlot slot, ENetworkDisconnectionReason reason, const char* pszName, uint64 xuid, const char* pszNetworkID);
-
     void Hook_ClientPutInServer(CPlayerSlot slot, char const* pszName, int type, uint64 xuid);
-
     void Hook_ClientSettingsChanged(CPlayerSlot slot);
-
     void Hook_OnClientConnected(CPlayerSlot slot, const char* pszName, uint64 xuid, const char* pszNetworkID, const char* pszAddress, bool bFakePlayer);
-
     bool Hook_ClientConnect(CPlayerSlot slot, const char* pszName, uint64 xuid, const char* pszNetworkID, bool unk1, CBufferString* pRejectReason);
-
     void Hook_ClientCommand(CPlayerSlot nSlot, const CCommand& cmd);
+    void Hook_StartupServer(const GameSessionConfiguration_t& config, ISource2WorldSession*, const char*);
 
   private:
-    ISmmAPI* _metamod {};
+    ISmmAPI* _metamod{ };
     LoggingChannelID_t _log;
 };
 

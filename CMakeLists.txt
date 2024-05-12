@@ -129,6 +129,8 @@ set(plugin_SOURCES
 	"hl2sdk/entity2/entityidentity.cpp"
 	"hl2sdk/entity2/entitysystem.cpp"
 	"hl2sdk/entity2/entitykeyvalues.cpp"
+	"src/addresses.cpp"
+	"src/gameconfig.cpp"
 	"src/lib/module.linux.cpp"
 	"src/lib/module.windows.cpp"
 	"src/lib/pattern.cpp"
@@ -151,6 +153,8 @@ set(plugin_SOURCES
 	"src/protobuf/te.pb.cc"
 	"src/protobuf/usercmd.pb.cc"
 	"src/protobuf/usermessages.pb.cc"
+	"src/addresses.hpp"
+	"src/gameconfig.hpp"
 	"src/interfaces.hpp"
 	"src/lib/address.hpp"
 	"src/lib/fnv1a_hash.hpp"
@@ -178,6 +182,14 @@ set(plugin_SOURCES
 	"src/protobuf/usercmd.pb.h"
 	"src/protobuf/usermessages.pb.h"
 	"src/sdk/entity/cbaseentity.h"
+	"src/sdk/entity/cbasemodelentity.h"
+	"src/sdk/entity/cbaseplayercontroller.h"
+	"src/sdk/entity/cbaseplayerpawn.h"
+	"src/sdk/entity/ccsplayercontroller.h"
+	"src/sdk/entity/ccsplayerpawn.h"
+	"src/sdk/entity/ccsweaponbase.h"
+	"src/sdk/entity/globaltypes.h"
+	"src/sdk/entity/services.h"
 	cmake.toml
 )
 

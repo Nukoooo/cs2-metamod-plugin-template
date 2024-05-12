@@ -4,15 +4,8 @@
 #include "irecipientfilter.h"
 #include "iserver.h"
 #include "tier1/convar.h"
+#include "entitysystem.h"
 
-class CSchemaSystem;
-
-namespace interfaces
-{
-    inline IServerGameDLL* server          = nullptr;
-    inline IServerGameClients* gameclients = nullptr;
-    inline IVEngineServer* engine          = nullptr;
-    inline IGameEventManager2* gameevents  = nullptr;
-    inline ICvar* icvar                    = nullptr;
-    inline CSchemaSystem* schemaSystem     = nullptr;
-} // namespace interfaces
+inline IVEngineServer2* g_pEngineServer2 = nullptr;
+inline CGlobalVars* gpGlobals = nullptr;
+inline CGameEntitySystem* g_pEntitySystem = nullptr;

@@ -2,6 +2,11 @@
 
 #include <cstdint>
 #include <optional>
+#include "../addresses.hpp"
+#include "../lib/memory.hpp"
+#include "../lib/fnv1a_hash.hpp"
+
+class Z_CBaseEntity;
 
 struct SchemaKey
 {
@@ -11,14 +16,11 @@ struct SchemaKey
 
 namespace schema
 {
-    std::optional<std::int32_t> GetOffset(std::string_view binding_name, std::string_view field_name);
-
     SchemaKey GetOffset(const char* className, std::uint32_t classKey, const char* memberName, std::uint32_t memberKey);
-
-    std::uint32_t Get(std::uint64_t hash);
-
-    void Dump();
+    int16_t FindChainOffset(const char *className);
 }
+
+void SetStateChanged(Z_CBaseEntity* pEntity, int offset);
 
 #define DECLARE_SCHEMA_CLASS_BASE(className, isStruct)                                                                                                                                                                                                         \
     typedef className ThisClass;                                                                                                                                                                                                                               \
@@ -26,6 +28,10 @@ namespace schema
     static constexpr bool IsStruct             = isStruct;
 
 #define DECLARE_SCHEMA_CLASS(className) DECLARE_SCHEMA_CLASS_BASE(className, false)
+
+// Use this for classes that can be wholly included within other classes (like CCollisionProperty within CBaseModelEntity)
+#define DECLARE_SCHEMA_CLASS_INLINE(className) \
+	DECLARE_SCHEMA_CLASS_BASE(className, true)
 
 #define SCHEMA_FIELD_OFFSET(type, varName, extra_offset)                                                                                                                                                                                                       \
     class varName##_prop                                                                                                                                                                                                                                       \
@@ -66,7 +72,7 @@ namespace schema
                 if (!IsStruct)                                                                                                                                                                                                                                 \
                     SetStateChanged((Z_CBaseEntity*)pThisClass, m_key.offset + extra_offset);                                                                                                                                                                  \
                 else if (IsPlatformPosix()) /* This is currently broken on windows */                                                                                                                                                                          \
-                    Memory::virtual_call<void>(pThisClass, 1, m_key.offset + extra_offset, 0xFFFFFFFF, 0xFFFF);                                                                                                                                                \
+                    Memory::VirtualCall<void>(pThisClass, 1, m_key.offset + extra_offset, 0xFFFFFFFF, 0xFFFF);                                                                                                                                                \
             }                                                                                                                                                                                                                                                  \
             *reinterpret_cast<std::add_pointer_t<type>>((uintptr_t)(pThisClass) + m_key.offset + extra_offset) = val;                                                                                                                                          \
         }                                                                                                                                                                                                                                                      \

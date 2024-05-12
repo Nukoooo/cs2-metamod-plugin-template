@@ -296,9 +296,7 @@ Module::GetOriginalBytes(const std::vector<std::uint8_t>& disk_data, std::uintpt
         {
             auto section_size = section->Misc.VirtualSize;
             if (section_size == 0)
-            {
                 section_size = section->SizeOfRawData;
-            }
 
             if (address >= section->VirtualAddress &&
                 address < static_cast<uintptr_t>(section->VirtualAddress) + section_size)

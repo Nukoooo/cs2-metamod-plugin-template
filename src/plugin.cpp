@@ -1,15 +1,25 @@
 #include "plugin.hpp"
+#include "addresses.hpp"
 #include "entity2/entitykeyvalues.h"
+#include "gameconfig.hpp"
 #include "interfaces.hpp"
 #include "modules.hpp"
 #include "protobuf/cs_usercmd.pb.h"
 #include "sdk/schema.hpp"
 
+#include "sdk/entity/cbaseentity.h"
+#include "sdk/entity/ccsplayercontroller.h"
+
 #include <cstdio>
 #include <format>
 #include <safetyhook.hpp>
+#include <spdlog/spdlog.h>
 
 DEFINE_LOGGING_CHANNEL_NO_TAGS(LOG_CS2S, "Plogon", 0, LV_MAX, Color());
+
+class GameSessionConfiguration_t
+{
+};
 
 SH_DECL_HOOK3_void(IServerGameDLL, GameFrame, SH_NOATTRIB, 0, bool, bool, bool);
 
@@ -29,8 +39,11 @@ SH_DECL_HOOK2(IGameEventManager2, FireEvent, SH_NOATTRIB, 0, bool, IGameEvent*, 
 
 SH_DECL_HOOK2_void(IServerGameClients, ClientCommand, SH_NOATTRIB, 0, CPlayerSlot, const CCommand&);
 
+SH_DECL_HOOK3_void(INetworkServerService, StartupServer, SH_NOATTRIB, 0, const GameSessionConfiguration_t&, ISource2WorldSession*, const char*);
+
 Plugin g_plugin(LOG_CS2S);
 PLUGIN_EXPOSE(Plugin, g_plugin);
+INetworkGameServer* g_pNetworkGameServer = nullptr;
 
 Plugin::Plugin(const LoggingChannelID_t logging)
 {
@@ -41,8 +54,8 @@ Plugin::~Plugin() = default;
 
 CGameEntitySystem* GameEntitySystem()
 {
-    static auto address = mods::server.FindPattern("48 8B 1D ? ? ? ? 48 89 1D").rel(3).cast<CGameEntitySystem**>();
-    return *address;
+    static int offset = g_pGameConfig->GetOffset("GameEntitySystem");
+    return *reinterpret_cast<CGameEntitySystem**>((uintptr_t) (g_pGameResourceServiceServer) + offset);
 }
 
 bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool late)
@@ -54,35 +67,52 @@ bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool l
     _metamod = ismm;
 
     ismm->AddListener(this, this);
-    GET_V_IFACE_CURRENT(GetEngineFactory, interfaces::engine, IVEngineServer, INTERFACEVERSION_VENGINESERVER)
-    GET_V_IFACE_CURRENT(GetEngineFactory, interfaces::icvar, ICvar, CVAR_INTERFACE_VERSION)
-    GET_V_IFACE_ANY(GetServerFactory, interfaces::server, IServerGameDLL, INTERFACEVERSION_SERVERGAMEDLL)
-    GET_V_IFACE_ANY(GetServerFactory, interfaces::gameclients, IServerGameClients, INTERFACEVERSION_SERVERGAMECLIENTS)
-    GET_V_IFACE_ANY(GetEngineFactory, interfaces::schemaSystem, CSchemaSystem, SCHEMASYSTEM_INTERFACE_VERSION);
+    GET_V_IFACE_CURRENT(GetEngineFactory, g_pEngineServer2, IVEngineServer2, SOURCE2ENGINETOSERVER_INTERFACE_VERSION);
+    GET_V_IFACE_CURRENT(GetEngineFactory, g_pGameResourceServiceServer, IGameResourceService, GAMERESOURCESERVICESERVER_INTERFACE_VERSION);
+    GET_V_IFACE_CURRENT(GetEngineFactory, g_pCVar, ICvar, CVAR_INTERFACE_VERSION);
+    GET_V_IFACE_CURRENT(GetEngineFactory, g_pSchemaSystem, ISchemaSystem, SCHEMASYSTEM_INTERFACE_VERSION);
+    GET_V_IFACE_ANY(GetServerFactory, g_pSource2Server, ISource2Server, SOURCE2SERVER_INTERFACE_VERSION);
+    GET_V_IFACE_ANY(GetServerFactory, g_pSource2ServerConfig, ISource2ServerConfig, SOURCE2SERVERCONFIG_INTERFACE_VERSION);
+    GET_V_IFACE_ANY(GetServerFactory, g_pSource2GameEntities, ISource2GameEntities, SOURCE2GAMEENTITIES_INTERFACE_VERSION);
+    GET_V_IFACE_ANY(GetServerFactory, g_pSource2GameClients, IServerGameClients, SOURCE2GAMECLIENTS_INTERFACE_VERSION);
     GET_V_IFACE_ANY(GetEngineFactory, g_pNetworkServerService, INetworkServerService, NETWORKSERVERSERVICE_INTERFACE_VERSION);
+    GET_V_IFACE_ANY(GetEngineFactory, g_pNetworkMessages, INetworkMessages, NETWORKMESSAGES_INTERFACE_VERSION);
+    GET_V_IFACE_ANY(GetFileSystemFactory, g_pFullFileSystem, IFileSystem, FILESYSTEM_INTERFACE_VERSION);
 
-    schema::Dump();
+    CBufferStringGrowable<256> gamedirpath;
+    g_pEngineServer2->GetGameDir(gamedirpath);
 
-    SH_ADD_HOOK_MEMFUNC(IServerGameDLL, GameFrame, interfaces::server, this, &Plugin::Hook_GameFrame, true);
-    SH_ADD_HOOK_MEMFUNC(IServerGameClients, ClientActive, interfaces::gameclients, this, &Plugin::Hook_ClientActive, true);
-    SH_ADD_HOOK_MEMFUNC(IServerGameClients, ClientDisconnect, interfaces::gameclients, this, &Plugin::Hook_ClientDisconnect, true);
-    SH_ADD_HOOK_MEMFUNC(IServerGameClients, ClientPutInServer, interfaces::gameclients, this, &Plugin::Hook_ClientPutInServer, true);
-    SH_ADD_HOOK_MEMFUNC(IServerGameClients, ClientSettingsChanged, interfaces::gameclients, this, &Plugin::Hook_ClientSettingsChanged, false);
-    SH_ADD_HOOK_MEMFUNC(IServerGameClients, OnClientConnected, interfaces::gameclients, this, &Plugin::Hook_OnClientConnected, false);
-    SH_ADD_HOOK_MEMFUNC(IServerGameClients, ClientConnect, interfaces::gameclients, this, &Plugin::Hook_ClientConnect, false);
-    SH_ADD_HOOK_MEMFUNC(IServerGameClients, ClientCommand, interfaces::gameclients, this, &Plugin::Hook_ClientCommand, false);
+    std::string_view gamedirpath_sv = gamedirpath.Get();
+    std::string_view game_name = gamedirpath_sv.substr(gamedirpath_sv.find_last_of("/\\") + 1);
+    spdlog::info("GameDirPath: {}, {}", gamedirpath_sv, game_name);
 
-    g_pCVar = interfaces::icvar;
+    g_pGameConfig = std::make_unique<CGameConfig>(game_name.data(), "addons/plugin/plugin.game.txt");
+    if (!g_pGameConfig->Init(g_pFullFileSystem))
+        return false;
+
+    if (!addresses::Initialize())
+    {
+        spdlog::error("Failed to initialize addresses");
+        return false;
+    }
+
+    SH_ADD_HOOK(IServerGameDLL, GameFrame, g_pSource2Server, SH_MEMBER(this, &Plugin::Hook_GameFrame), true);
+    SH_ADD_HOOK(IServerGameClients, ClientActive, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientActive), true);
+    SH_ADD_HOOK(IServerGameClients, ClientDisconnect, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientDisconnect), true);
+    SH_ADD_HOOK(IServerGameClients, ClientPutInServer, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientPutInServer), true);
+    SH_ADD_HOOK(IServerGameClients, ClientSettingsChanged, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientSettingsChanged), false);
+    SH_ADD_HOOK(IServerGameClients, OnClientConnected, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_OnClientConnected), false);
+    SH_ADD_HOOK(IServerGameClients, ClientConnect, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientConnect), false);
+    SH_ADD_HOOK(IServerGameClients, ClientCommand, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientCommand), false);
+    SH_ADD_HOOK(INetworkServerService, StartupServer, g_pNetworkServerService, SH_MEMBER(this, &Plugin::Hook_StartupServer), true);
+
     ConVar_Register(FCVAR_RELEASE | FCVAR_CLIENT_CAN_EXECUTE | FCVAR_GAMEDLL);
 
-    auto result = mods::server.FindVtable("CCSPlayerPawn");
-    if (result.is_valid())
+    if (late)
     {
-        std::cout << std::format("Found vtable CCSPlayerPawn. {:#x}", result.ptr) << std::endl;
-    }
-    else
-    {
-        printf("Cannot find CCSPlayerPawn\n");
+        g_pNetworkGameServer = g_pNetworkServerService->GetIGameServer();
+        g_pEntitySystem = GameEntitySystem();
+        gpGlobals = g_pNetworkGameServer->GetGlobals();
     }
 
     return true;
@@ -90,6 +120,16 @@ bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool l
 
 bool Plugin::Unload(char* error, size_t maxlen)
 {
+    SH_REMOVE_HOOK(IServerGameDLL, GameFrame, g_pSource2Server, SH_MEMBER(this, &Plugin::Hook_GameFrame), true);
+    SH_REMOVE_HOOK(IServerGameClients, ClientActive, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientActive), true);
+    SH_REMOVE_HOOK(IServerGameClients, ClientDisconnect, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientDisconnect), true);
+    SH_REMOVE_HOOK(IServerGameClients, ClientPutInServer, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientPutInServer), true);
+    SH_REMOVE_HOOK(IServerGameClients, ClientSettingsChanged, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientSettingsChanged), false);
+    SH_REMOVE_HOOK(IServerGameClients, OnClientConnected, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_OnClientConnected), false);
+    SH_REMOVE_HOOK(IServerGameClients, ClientConnect, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientConnect), false);
+    SH_REMOVE_HOOK(IServerGameClients, ClientCommand, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientCommand), false);
+    SH_REMOVE_HOOK(INetworkServerService, StartupServer, g_pNetworkServerService, SH_MEMBER(this, &Plugin::Hook_StartupServer), true);
+
     return ISmmPlugin::Unload(error, maxlen);
 }
 
@@ -104,6 +144,12 @@ void Plugin::Hook_ClientActive(CPlayerSlot slot, bool bLoadGame, const char* psz
 
 void Plugin::Hook_ClientCommand(CPlayerSlot slot, const CCommand& args)
 {
+    CCSPlayerController* player = CCSPlayerController::FromSlot(slot);
+    spdlog::info("{}, {}", player->m_iszPlayerName.Get(), args.GetCommandString());
+    auto pawn = player->GetPlayerPawn();
+    if (!pawn)
+        return;
+    pawn->CommitSuicide(true, true);
     // META_CONPRINTF("Hook_ClientCommand(%d, \"%s\")\n", slot, args.GetCommandString());
 }
 
@@ -152,4 +198,11 @@ void Plugin::OnLevelInit(char const* pMapName, char const* pMapEntities, char co
 void Plugin::OnLevelShutdown()
 {
     // META_CONPRINTF("OnLevelShutdown()\n");
+}
+
+void Plugin::Hook_StartupServer(const GameSessionConfiguration_t& config, ISource2WorldSession* pSession, const char* pszMapName)
+{
+    g_pNetworkGameServer = g_pNetworkServerService->GetIGameServer();
+    g_pEntitySystem = GameEntitySystem();
+    gpGlobals = g_pNetworkGameServer->GetGlobals();
 }
