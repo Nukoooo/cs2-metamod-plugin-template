@@ -55,6 +55,15 @@ FetchContent_Declare(expected
 )
 FetchContent_MakeAvailable(expected)
 
+message(STATUS "Fetching safetyhook (4faf792c2d66cbf06f2c942561d053aafd79006b)...")
+FetchContent_Declare(safetyhook
+	GIT_REPOSITORY
+		"https://github.com/cursey/safetyhook"
+	GIT_TAG
+		4faf792c2d66cbf06f2c942561d053aafd79006b
+)
+FetchContent_MakeAvailable(safetyhook)
+
 message(STATUS "Fetching spdlog (v1.14.1)...")
 FetchContent_Declare(spdlog
 	GIT_REPOSITORY
@@ -74,65 +83,6 @@ FetchContent_Declare(protobuf
 		0a02547b680a319e73fd04d9efff88d901c3eaa8
 )
 FetchContent_MakeAvailable(protobuf)
-
-# Target: safetyhook
-set(safetyhook_SOURCES
-	"safetyhook/safetyhook.cpp"
-	"safetyhook/Zydis.c"
-	cmake.toml
-)
-
-add_library(safetyhook STATIC)
-
-target_sources(safetyhook PRIVATE ${safetyhook_SOURCES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${safetyhook_SOURCES})
-
-add_library(safetyhook::safetyhook ALIAS safetyhook)
-target_compile_features(safetyhook PUBLIC
-	cxx_std_20
-)
-
-if(MSVC) # msvc
-	target_compile_options(safetyhook PRIVATE
-		"/permissive-"
-		"/W4"
-		"/w14640"
-	)
-endif()
-
-if((CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$") OR (CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "^MSVC$")) # clang
-	target_compile_options(safetyhook PRIVATE
-		-Wall
-		-Wextra
-		-Wshadow
-		-Wnon-virtual-dtor
-		-pedantic
-	)
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "GNU") # gcc
-	target_compile_options(safetyhook PRIVATE
-		-Wall
-		-Wextra
-		-Wshadow
-		-Wnon-virtual-dtor
-		-pedantic
-	)
-endif()
-
-target_include_directories(safetyhook PUBLIC
-	"safetyhook/safetyhook.hpp"
-	"safetyhook/Zydis.h"
-)
-
-target_link_libraries(safetyhook PUBLIC
-	tl::expected
-)
-
-set(CMKR_TARGET safetyhook)
-if(SAFETYHOOK_USE_CXXMODULES)
-    target_compile_definitions(safetyhook INTERFACE SAFETYHOOK_USE_CXXMODULES)
-endif()
 
 # Target: mmsdk
 add_library(mmsdk INTERFACE)
@@ -288,10 +238,6 @@ if((CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_FRONTEND_VA
 		-fPIC
 	)
 endif()
-
-target_include_directories(plugin PUBLIC
-	safetyhook
-)
 
 if(WIN32) # windows
 	target_link_libraries(plugin PUBLIC

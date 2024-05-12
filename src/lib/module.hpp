@@ -8,6 +8,18 @@
 #include <vector>
 #include <functional>
 
+enum SegmentFlags : std::int32_t
+{
+    FLAG_R = 1 << 0,
+    FLAG_W = 1 << 1,
+    FLAG_X = 1 << 2,
+};
+
+inline constexpr SegmentFlags operator| (SegmentFlags a, SegmentFlags b)
+{
+    return SegmentFlags((int)(a) | (int)(b));
+}
+
 struct Segments
 {
     Segments() = default;
@@ -17,6 +29,7 @@ struct Segments
     Segments& operator=(const Segments&) = default;
     Segments& operator=(Segments&&)      = default;
 
+    std::int32_t flags;
     std::uintptr_t address{};
     std::vector<std::uint8_t> data{};
 };
@@ -57,6 +70,9 @@ public:
     }
 
     [[nodiscard]] Address FindPattern(std::string_view pattern) const;
+    [[nodiscard]] Address FindString(const std::string& str, bool read_only) const;
+    [[nodiscard]] Address FindPtr(std::uintptr_t ptr) const;
+    [[nodiscard]] Address FindVtable(const std::string& name);
 
     [[nodiscard]] void* GetProc(std::string_view proc_name) const;
     [[nodiscard]] void* GetProc(std::uint64_t proc_name_hash) const;

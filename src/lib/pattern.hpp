@@ -123,6 +123,10 @@ namespace pattern
         };
 
         Address find_std(std::uint8_t* data, std::size_t size, const std::vector<HexData>& pattern) noexcept;
+        Address find_str(std::uint8_t* data, std::size_t size, const std::string& str, bool zero_terminated = false) noexcept;
+        Address find_ptr(std::uint8_t* data, std::size_t size, std::uintptr_t ptr) noexcept;
+        Address find_ptr(std::uint8_t* data, std::size_t size, std::uint8_t* ptr) noexcept;
+
     }
 
     Address find(const std::vector<std::uint8_t>& data, const impl::Pattern<>& pattern) noexcept;
