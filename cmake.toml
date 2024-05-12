@@ -65,6 +65,7 @@ include-directories = [
   "hl2sdk/game/shared",
   "hl2sdk/game/server",
   "hl2sdk/public",
+  "hl2sdk/public/schemasystem",
   "hl2sdk/public/engine",
   "hl2sdk/public/mathlib",
   "hl2sdk/public/tier0",

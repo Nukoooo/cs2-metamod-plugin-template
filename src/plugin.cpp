@@ -3,6 +3,7 @@
 #include "interfaces.hpp"
 #include "entity2/entitykeyvalues.h"
 #include "protobuf/cs_usercmd.pb.h"
+#include "sdk/schema.hpp"
 
 #include <safetyhook.hpp>
 
@@ -45,8 +46,6 @@ CGameEntitySystem* GameEntitySystem()
     return *address;
 }
 
-safetyhook::InlineHook CCSPlayer_MovementServices_RunCommand{ };
-
 bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool late)
 {
     PLUGIN_SAVEVARS()
@@ -60,8 +59,11 @@ bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool l
     GET_V_IFACE_CURRENT(GetEngineFactory, interfaces::icvar, ICvar, CVAR_INTERFACE_VERSION)
     GET_V_IFACE_ANY(GetServerFactory, interfaces::server, IServerGameDLL, INTERFACEVERSION_SERVERGAMEDLL)
     GET_V_IFACE_ANY(GetServerFactory, interfaces::gameclients, IServerGameClients, INTERFACEVERSION_SERVERGAMECLIENTS)
+    GET_V_IFACE_ANY(GetEngineFactory, interfaces::schemaSystem, CSchemaSystem, SCHEMASYSTEM_INTERFACE_VERSION);
     GET_V_IFACE_ANY(GetEngineFactory, g_pNetworkServerService, INetworkServerService,
-                    NETWORKSERVERSERVICE_INTERFACE_VERSION)
+                    NETWORKSERVERSERVICE_INTERFACE_VERSION);
+
+    schema::Dump();
 
     SH_ADD_HOOK_MEMFUNC(IServerGameDLL, GameFrame, interfaces::server, this, &Plugin::Hook_GameFrame, true);
     SH_ADD_HOOK_MEMFUNC(IServerGameClients, ClientActive, interfaces::gameclients, this, &Plugin::Hook_ClientActive,
@@ -87,8 +89,6 @@ bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool l
 
 bool Plugin::Unload(char* error, size_t maxlen)
 {
-    CCSPlayer_MovementServices_RunCommand.reset();
-
     return ISmmPlugin::Unload(error, maxlen);
 }
 

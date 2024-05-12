@@ -47,7 +47,7 @@ if(POLICY CMP0135)
 	cmake_policy(SET CMP0135 NEW)
 endif()
 message(STATUS "Fetching expected (3f0ca7b19253129700a073abfa6d8638d9f7c80c)...")
-FetchContent_Declare(expected
+FetchContent_Declare(expected SYSTEM
 	GIT_REPOSITORY
 		"https://github.com/TartanLlama/expected"
 	GIT_TAG
@@ -56,7 +56,7 @@ FetchContent_Declare(expected
 FetchContent_MakeAvailable(expected)
 
 message(STATUS "Fetching spdlog (v1.14.1)...")
-FetchContent_Declare(spdlog
+FetchContent_Declare(spdlog SYSTEM
 	GIT_REPOSITORY
 		"https://github.com/gabime/spdlog"
 	GIT_TAG
@@ -67,7 +67,7 @@ FetchContent_Declare(spdlog
 FetchContent_MakeAvailable(spdlog)
 
 message(STATUS "Fetching protobuf (0a02547b680a319e73fd04d9efff88d901c3eaa8)...")
-FetchContent_Declare(protobuf
+FetchContent_Declare(protobuf SYSTEM
 	GIT_REPOSITORY
 		"https://github.com/noahbkim/cs2s-protobuf"
 	GIT_TAG
@@ -162,6 +162,7 @@ target_include_directories(hl2sdk INTERFACE
 	"hl2sdk/game/shared"
 	"hl2sdk/game/server"
 	"hl2sdk/public"
+	"hl2sdk/public/schemasystem"
 	"hl2sdk/public/engine"
 	"hl2sdk/public/mathlib"
 	"hl2sdk/public/tier0"
@@ -183,6 +184,8 @@ set(plugin_SOURCES
 	"src/lib/pattern.cpp"
 	"src/modules.cpp"
 	"src/plugin.cpp"
+	"src/sdk/funcs.cpp"
+	"src/sdk/schema.cpp"
 	"src/protobuf/clientmessages.pb.cc"
 	"src/protobuf/cs_gameevents.pb.cc"
 	"src/protobuf/cs_usercmd.pb.cc"
@@ -201,11 +204,14 @@ set(plugin_SOURCES
 	"src/interfaces.hpp"
 	"src/lib/address.hpp"
 	"src/lib/fnv1a_hash.hpp"
+	"src/lib/memory.hpp"
 	"src/lib/module.hpp"
 	"src/lib/pattern.hpp"
 	"src/lib/simd.hpp"
 	"src/modules.hpp"
 	"src/plugin.hpp"
+	"src/sdk/funcs.hpp"
+	"src/sdk/schema.hpp"
 	"src/protobuf/clientmessages.pb.h"
 	"src/protobuf/cs_gameevents.pb.h"
 	"src/protobuf/cs_usercmd.pb.h"
@@ -221,6 +227,7 @@ set(plugin_SOURCES
 	"src/protobuf/te.pb.h"
 	"src/protobuf/usercmd.pb.h"
 	"src/protobuf/usermessages.pb.h"
+	"src/sdk/entity/cbaseentity.h"
 	cmake.toml
 )
 

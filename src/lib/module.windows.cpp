@@ -1,4 +1,5 @@
 #ifdef WINDOWS
+
 #include <algorithm>
 #include <filesystem>
 #include <format>
@@ -14,9 +15,9 @@
 #include <Windows.h>
 #include <winternl.h>
 
-std::vector<std::pair<std::string, std::uintptr_t>> module_list{};
+std::vector<std::pair<std::string, std::uintptr_t>> module_list{ };
 
-Module::Module(std::string_view str, bool read_from_disk, const FindPatternCallbackFn &find_pattern_callback)
+Module::Module(std::string_view str, bool read_from_disk, const FindPatternCallbackFn& find_pattern_callback)
 {
     GetModuleInfo(str, read_from_disk);
     _find_pattern_callback = find_pattern_callback;
@@ -26,10 +27,12 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
 {
     if (module_list.empty()) [[unlikely]]
     {
-        const auto pteb = reinterpret_cast<PTEB>(__readgsqword(reinterpret_cast<DWORD_PTR>(&static_cast<NT_TIB *>(nullptr)->Self)));
+        const auto pteb = reinterpret_cast<PTEB>(__readgsqword(
+                reinterpret_cast<DWORD_PTR>(&static_cast<NT_TIB*>(nullptr)->Self)));
         const auto peb = pteb->ProcessEnvironmentBlock;
 
-        for (auto entry = peb->Ldr->InMemoryOrderModuleList.Flink; entry != &peb->Ldr->InMemoryOrderModuleList; entry = entry->Flink)
+        for (auto entry = peb->Ldr->InMemoryOrderModuleList.Flink;
+             entry != &peb->Ldr->InMemoryOrderModuleList; entry = entry->Flink)
         {
             const auto module_entry = CONTAINING_RECORD(entry, LDR_DATA_TABLE_ENTRY, InMemoryOrderLinks);
 
@@ -43,7 +46,7 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
             if (!name.contains("game/") || name.contains("addons"))
                 continue;
 
-            auto &mod_info = module_list.emplace_back();
+            auto& mod_info = module_list.emplace_back();
 
             mod_info.first = name;
             mod_info.second = reinterpret_cast<uintptr_t>(module_entry->DllBase);
@@ -51,7 +54,7 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
     }
 
     const auto it = std::ranges::find_if(module_list,
-                                         [&](const auto &i)
+                                         [&](const auto& i)
                                          {
                                              auto mod_name = i.first.substr(i.first.find_last_of('/'));
                                              std::ranges::transform(mod_name, mod_name.begin(), tolower);
@@ -66,7 +69,7 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
     if (dos_header->e_magic != IMAGE_DOS_SIGNATURE)
         return;
 
-    const auto bytes = reinterpret_cast<std::uint8_t *>(it->second);
+    const auto bytes = reinterpret_cast<std::uint8_t*>(it->second);
 
     const auto nt_header = reinterpret_cast<PIMAGE_NT_HEADERS>(bytes + dos_header->e_lfanew);
 
@@ -79,7 +82,7 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
     this->_size = nt_header->OptionalHeader.SizeOfImage;
     this->_module_name = path.substr(path.find_last_of('/') + 1);
 
-    std::vector<std::uint8_t> disk_data{};
+    std::vector<std::uint8_t> disk_data{ };
     if (read_from_disk)
     {
         std::ifstream stream(it->first, std::ios::in | std::ios::binary);
@@ -102,12 +105,12 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
             const auto start = this->_base_address + section->VirtualAddress;
             const auto size = std::min(section->SizeOfRawData, section->Misc.VirtualSize);
 
-            auto &segment = _segments.emplace_back();
+            auto& segment = _segments.emplace_back();
 
             if (!read_from_disk)
             {
                 segment.address = start;
-                const auto data = reinterpret_cast<std::uint8_t *>(start);
+                const auto data = reinterpret_cast<std::uint8_t*>(start);
                 segment.data = std::vector(&data[0], &data[size]);
                 continue;
             }
@@ -121,12 +124,12 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
         }
     }
 
-    DumpExports(_base_address);
+    DumpExports(reinterpret_cast<void*>(_base_address));
 }
 
 Address Module::FindPattern(std::string_view pattern) const
 {
-    for (auto &&segment : _segments)
+    for (auto&& segment : _segments)
     {
         if (auto result = pattern::find(segment.data, pattern))
         {
@@ -138,48 +141,50 @@ Address Module::FindPattern(std::string_view pattern) const
         }
     }
 
-    return {};
+    return { };
 }
 
-void *Module::GetProc(const std::string_view proc_name) const
+void* Module::GetProc(const std::string_view proc_name) const
 {
     const auto hash = fnv1a64::hash(proc_name);
 
     if (const auto it = _exports.find(hash); it != _exports.end())
-        return reinterpret_cast<void *>(it->second);
+        return reinterpret_cast<void*>(it->second);
 
     return nullptr;
 }
 
-void *Module::GetProc(std::uint64_t proc_name_hash) const
+void* Module::GetProc(std::uint64_t proc_name_hash) const
 {
     if (const auto it = _exports.find(proc_name_hash); it != _exports.end())
-        return reinterpret_cast<void *>(it->second);
+        return reinterpret_cast<void*>(it->second);
 
     return nullptr;
 }
 
-void Module::DumpExports(void *module_base)
+void Module::DumpExports(void* module_base)
 {
     const auto dos_header = reinterpret_cast<PIMAGE_DOS_HEADER>(module_base);
 
-    const auto nt_header = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<std::uint8_t *>(module_base) + dos_header->e_lfanew);
+    const auto nt_header = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<std::uint8_t*>(module_base) +
+                                                               dos_header->e_lfanew);
 
     const auto [export_address_rva, export_size] = nt_header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
     if (export_size == 0 || export_address_rva == 0)
         return;
 
-    auto export_directory = reinterpret_cast<IMAGE_EXPORT_DIRECTORY *>(_base_address + export_address_rva);
-    const auto names = reinterpret_cast<uint32_t *>(_base_address + export_directory->AddressOfNames);
-    const auto addresses = reinterpret_cast<uint32_t *>(_base_address + export_directory->AddressOfFunctions);
-    const auto ordinals = reinterpret_cast<std::uint16_t *>(_base_address + export_directory->AddressOfNameOrdinals);
+    auto export_directory = reinterpret_cast<IMAGE_EXPORT_DIRECTORY*>(_base_address + export_address_rva);
+    const auto names = reinterpret_cast<uint32_t*>(_base_address + export_directory->AddressOfNames);
+    const auto addresses = reinterpret_cast<uint32_t*>(_base_address + export_directory->AddressOfFunctions);
+    const auto ordinals = reinterpret_cast<std::uint16_t*>(_base_address + export_directory->AddressOfNameOrdinals);
 
     for (auto i = 0ull; i < export_directory->NumberOfNames; i++)
     {
-        const auto export_name = reinterpret_cast<const char *>(_base_address + names[i]);
+        const auto export_name = reinterpret_cast<const char*>(_base_address + names[i]);
         const auto address = reinterpret_cast<std::uintptr_t>(module_base) + addresses[ordinals[i]];
 
-        if (address >= reinterpret_cast<uintptr_t>(export_directory) && address < reinterpret_cast<uintptr_t>(export_directory) + export_size)
+        if (address >= reinterpret_cast<uintptr_t>(export_directory) &&
+            address < reinterpret_cast<uintptr_t>(export_directory) + export_size)
             continue;
 
         auto hash = fnv1a64::hash(export_name);
@@ -187,9 +192,10 @@ void Module::DumpExports(void *module_base)
     }
 }
 
-std::optional<std::vector<std::uint8_t>> Module::GetOriginalBytes(const std::vector<std::uint8_t> &disk_data, std::uintptr_t rva, std::size_t size)
+std::optional<std::vector<std::uint8_t>>
+Module::GetOriginalBytes(const std::vector<std::uint8_t>& disk_data, std::uintptr_t rva, std::size_t size)
 {
-    auto get_file_ptr_from_rva = [](std::uint8_t *data, std::uintptr_t address) -> std::optional<std::uintptr_t>
+    auto get_file_ptr_from_rva = [](std::uint8_t* data, std::uintptr_t address) -> std::optional<std::uintptr_t>
     {
         // thank you praydog
         // https://github.com/cursey/kananlib/blob/b0323a0b005fc9e3944e0ea36dcc98eda4b84eea/src/Module.cpp#L176
@@ -205,7 +211,8 @@ std::optional<std::vector<std::uint8_t>> Module::GetOriginalBytes(const std::vec
                 section_size = section->SizeOfRawData;
             }
 
-            if (address >= section->VirtualAddress && address < static_cast<uintptr_t>(section->VirtualAddress) + section_size)
+            if (address >= section->VirtualAddress &&
+                address < static_cast<uintptr_t>(section->VirtualAddress) + section_size)
             {
                 const auto delta = section->VirtualAddress - section->PointerToRawData;
 
@@ -215,13 +222,19 @@ std::optional<std::vector<std::uint8_t>> Module::GetOriginalBytes(const std::vec
         return std::nullopt;
     };
 
-    const auto disk_ptr = get_file_ptr_from_rva(const_cast<std::uint8_t *>(disk_data.data()), rva);
+    const auto disk_ptr = get_file_ptr_from_rva(const_cast<std::uint8_t*>(disk_data.data()), rva);
     if (!disk_ptr)
         return std::nullopt;
 
-    const auto disk_bytes = reinterpret_cast<std::uint8_t *>(*disk_ptr);
+    const auto disk_bytes = reinterpret_cast<std::uint8_t*>(*disk_ptr);
     std::vector<std::uint8_t> result{&disk_bytes[0], &disk_bytes[size]};
 
     return result;
 }
+
+Address Module::FindVTableByName(std::string_view name)
+{
+    
+}
+
 #endif
