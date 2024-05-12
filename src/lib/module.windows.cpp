@@ -16,7 +16,7 @@
 #include <Windows.h>
 #include <winternl.h>
 
-std::vector<std::pair<std::string, std::uintptr_t>> module_list{ };
+std::vector<std::pair<std::string, std::uintptr_t>> module_list{};
 
 Module::Module(std::string_view str, bool read_from_disk, const FindPatternCallbackFn& find_pattern_callback)
 {
@@ -39,7 +39,11 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
 
             std::wstring_view w_name = module_entry->FullDllName.Buffer;
 
-            std::string name(w_name.begin(), w_name.end());
+            auto length = WideCharToMultiByte(CP_UTF8, 0, w_name.data(), w_name.length(), nullptr, 0, nullptr, nullptr);
+            std::string name{};
+
+            name.resize(length);
+            WideCharToMultiByte(CP_UTF8, 0, w_name.data(), w_name.length(), (LPSTR) name.c_str(), length, nullptr, nullptr);
 
             std::ranges::replace(name, '\\', '/');
 
@@ -55,8 +59,7 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
     }
 
     const auto it = std::ranges::find_if(module_list,
-                                         [&](const auto& i)
-                                         {
+                                         [&](const auto& i) {
                                              auto mod_name = i.first.substr(i.first.find_last_of('/'));
                                              std::ranges::transform(mod_name, mod_name.begin(), tolower);
                                              return mod_name.find(mod) != std::string::npos;
@@ -83,7 +86,7 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
     this->_size = nt_header->OptionalHeader.SizeOfImage;
     this->_module_name = path.substr(path.find_last_of('/') + 1);
 
-    std::vector<std::uint8_t> disk_data{ };
+    std::vector<std::uint8_t> disk_data{};
     if (read_from_disk)
     {
         std::ifstream stream(it->first, std::ios::in | std::ios::binary);
@@ -147,7 +150,7 @@ Address Module::FindPattern(std::string_view pattern) const
         }
     }
 
-    return { };
+    return {};
 }
 
 Address Module::FindString(const std::string& str, bool read_only) const
@@ -172,7 +175,7 @@ Address Module::FindString(const std::string& str, bool read_only) const
         }
     }
 
-    return { };
+    return {};
 }
 
 Address Module::FindPtr(std::uintptr_t ptr, std::uint8_t size) const
@@ -192,7 +195,7 @@ Address Module::FindPtr(std::uintptr_t ptr, std::uint8_t size) const
         }
     }
 
-    return { };
+    return {};
 }
 
 Address Module::FindVtable(const std::string& name)
@@ -202,7 +205,7 @@ Address Module::FindVtable(const std::string& name)
     if (!type_descriptor.is_valid())
     {
         spdlog::error("Cannot find vtable: {}", vtable_name);
-        return { };
+        return {};
     }
 
     spdlog::info("{:#x}, {:#x}", type_descriptor.ptr, type_descriptor.ptr - _base_address);
@@ -214,40 +217,33 @@ Address Module::FindVtable(const std::string& name)
     if (!complete_object_locator.is_valid())
     {
         spdlog::error("complete_object_locator is invalid");
-        return { };
+        return {};
     }
 
     spdlog::info("complete_object_locator: {:#x}", complete_object_locator.ptr - _base_address);
     // check for header offset
     auto header = complete_object_locator.offset(-0xC);
     if (header.deref().cast<std::int32_t>() != 1)
-        return { };
+        return {};
     // check for vtable offset
     if (complete_object_locator.offset(-0x8).deref().cast<std::int32_t>() != 0)
-        return { };
+        return {};
 
     auto vtable = FindPtr(header.ptr);
     if (vtable.is_valid())
         return vtable.offset(8);
 
-    return { };
+    return {};
 }
 
 void* Module::GetProc(const std::string_view proc_name) const
 {
-    const auto hash = fnv1a64::hash(proc_name);
-
-    if (const auto it = _exports.find(hash); it != _exports.end())
-        return reinterpret_cast<void*>(it->second);
-
-    return nullptr;
+    return GetProcAddress(reinterpret_cast<HMODULE>(_base_address), proc_name.data());
 }
 
 void* Module::GetProc(std::uint64_t proc_name_hash) const
 {
-    if (const auto it = _exports.find(proc_name_hash); it != _exports.end())
-        return reinterpret_cast<void*>(it->second);
-
+    spdlog::error("NO GetProc(std::uint64_t proc_name_hash) ON WINDOWS");
     return nullptr;
 }
 
@@ -284,8 +280,7 @@ void Module::DumpExports(void* module_base)
 std::optional<std::vector<std::uint8_t>>
 Module::GetOriginalBytes(const std::vector<std::uint8_t>& disk_data, std::uintptr_t rva, std::size_t size)
 {
-    auto get_file_ptr_from_rva = [](std::uint8_t* data, std::uintptr_t address) -> std::optional<std::uintptr_t>
-    {
+    auto get_file_ptr_from_rva = [](std::uint8_t* data, std::uintptr_t address) -> std::optional<std::uintptr_t> {
         // thank you praydog
         // https://github.com/cursey/kananlib/blob/b0323a0b005fc9e3944e0ea36dcc98eda4b84eea/src/Module.cpp#L176
 
