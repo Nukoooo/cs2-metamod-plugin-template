@@ -9,19 +9,19 @@ struct AddressBase
     type ptr = 0;
 
     AddressBase()
-        : ptr{}
+     : ptr {}
     {
     }
 
-    template <typename T, std::enable_if_t<std::is_integral_v<T>, int>  = 0>
+    template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
     AddressBase(T src)
-        : ptr{ static_cast<type>(src) }
+     : ptr { static_cast<type>(src) }
     {
     }
 
-    template <typename T, std::enable_if_t<std::is_pointer_v<T>, int>  = 0>
+    template <typename T, std::enable_if_t<std::is_pointer_v<T>, int> = 0>
     AddressBase(T src)
-        : ptr{ reinterpret_cast<type>(src) }
+     : ptr { reinterpret_cast<type>(src) }
     {
     }
 
@@ -49,20 +49,20 @@ struct AddressBase
 
     bool is_valid()
     {
-        #ifdef ENVIRONMENT32
+#ifdef ENVIRONMENT32
         return ptr >= 0x1000 && ptr < 0xFFFFFFEF;
-        #else
+#else
         return ptr >= 0x1000 && ptr < 0x7FFFFFFEFFFF;
-        #endif
+#endif
     }
 
     [[nodiscard]] bool is_valid() const
     {
-        #ifdef ENVIRONMENT32
+#ifdef ENVIRONMENT32
         return ptr >= 0x1000 && ptr < 0xFFFFFFEF;
-        #else
+#else
         return ptr >= 0x1000 && ptr < 0x7FFFFFFEFFFF;
-        #endif
+#endif
     }
 
     template <typename T = type>
@@ -119,6 +119,5 @@ struct AddressBase
         return T(ptr + offset);
     }
 };
-
 
 using Address = AddressBase<>;

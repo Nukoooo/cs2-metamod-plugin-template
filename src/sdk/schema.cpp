@@ -7,14 +7,13 @@
 // #defien DUMP_SCHEMA
 
 #ifdef DUMP_SCHEMA
-#include <fstream>
+    #include <fstream>
 #endif
 
 using SchemaKeyValueMap_t = CUtlMap<uint32_t, SchemaKey>;
-using SchemaTableMap_t = CUtlMap<uint32_t, SchemaKeyValueMap_t*>;
+using SchemaTableMap_t    = CUtlMap<uint32_t, SchemaKeyValueMap_t*>;
 
 std::unordered_map<std::uint64_t, std::int32_t> schema_offsets;
-
 
 static bool IsFieldNetworked(SchemaClassFieldData_t& field)
 {
@@ -27,28 +26,28 @@ static bool IsFieldNetworked(SchemaClassFieldData_t& field)
     return false;
 }
 
-static bool InitSchemaFieldsForClass(SchemaTableMap_t *tableMap, const char* className, uint32_t classKey)
+static bool InitSchemaFieldsForClass(SchemaTableMap_t* tableMap, const char* className, uint32_t classKey)
 {
     CSchemaSystemTypeScope* pType = g_pSchemaSystem->FindTypeScopeForModule(mods::server.ModuleName().data());
 
     if (!pType)
         return false;
 
-    SchemaClassInfoData_t *pClassInfo = pType->FindDeclaredClass(className).Get();
+    SchemaClassInfoData_t* pClassInfo = pType->FindDeclaredClass(className).Get();
 
     if (!pClassInfo)
     {
-        SchemaKeyValueMap_t *map = new SchemaKeyValueMap_t(0, 0, DefLessFunc(uint32_t));
+        SchemaKeyValueMap_t* map = new SchemaKeyValueMap_t(0, 0, DefLessFunc(uint32_t));
         tableMap->Insert(classKey, map);
 
         Warning("InitSchemaFieldsForClass(): '%s' was not found!\n", className);
         return false;
     }
 
-    short fieldsSize = pClassInfo->m_nFieldCount;
+    short fieldsSize                = pClassInfo->m_nFieldCount;
     SchemaClassFieldData_t* pFields = pClassInfo->m_pFields;
 
-    SchemaKeyValueMap_t *keyValueMap = new SchemaKeyValueMap_t(0, 0, DefLessFunc(uint32_t));
+    SchemaKeyValueMap_t* keyValueMap = new SchemaKeyValueMap_t(0, 0, DefLessFunc(uint32_t));
     keyValueMap->EnsureCapacity(fieldsSize);
     tableMap->Insert(classKey, keyValueMap);
 
@@ -60,12 +59,11 @@ static bool InitSchemaFieldsForClass(SchemaTableMap_t *tableMap, const char* cla
         spdlog::info("{}::{} found at -> {:#x} - {:#x}", className, field.m_pszName, field.m_nSingleInheritanceOffset, (uintptr_t)(&field));
 #endif
 
-        keyValueMap->Insert(fnv1a32::hash(field.m_pszName), {field.m_nSingleInheritanceOffset, IsFieldNetworked(field)});
+        keyValueMap->Insert(fnv1a32::hash(field.m_pszName), { field.m_nSingleInheritanceOffset, IsFieldNetworked(field) });
     }
 
     return true;
 }
-
 
 void schema::Dump()
 {
@@ -78,7 +76,7 @@ void schema::Dump()
 #ifdef DUMP_SCHEMA
     std::ofstream dumped_schema("schema_server.txt");
 #endif
-    std::vector<UtlTSHashHandle_t> elements{ };
+    std::vector<UtlTSHashHandle_t> elements {};
     elements.resize(table_size + 1);
     for (auto i = 0; i < table_size; i++)
     {
@@ -87,7 +85,7 @@ void schema::Dump()
             continue;
 
         auto field_count = element->m_pClassInfo->m_nFieldCount;
-        auto name = element->m_pClassInfo->m_pszName;
+        auto name        = element->m_pClassInfo->m_pszName;
 
         if (field_count == 0 || name == nullptr)
             continue;
@@ -103,7 +101,7 @@ void schema::Dump()
             dumped_schema << std::format("    [{}] {} -> {:#x}\n", field.m_pType->m_sTypeName.Get(), field.m_pszName, field.m_nSingleInheritanceOffset);
 #endif
 
-            auto schema_name_hashed = fnv1a64::hash(std::format("{}->{}", name, name));
+            auto schema_name_hashed            = fnv1a64::hash(std::format("{}->{}", name, name));
             schema_offsets[schema_name_hashed] = field.m_nSingleInheritanceOffset;
         }
 
@@ -115,8 +113,6 @@ void schema::Dump()
 
 std::optional<std::int32_t> schema::GetOffset(std::string_view binding_name, std::string_view field_name)
 {
-
-
     return std::optional<std::int32_t>();
 }
 
@@ -140,8 +136,8 @@ SchemaKey schema::GetOffset(const char* className, uint32_t classKey, const char
         return { 0, false };
     }
 
-    SchemaKeyValueMap_t *tableMap = schemaTableMap[tableMapIndex];
-    int16_t memberIndex = tableMap->Find(memberKey);
+    SchemaKeyValueMap_t* tableMap = schemaTableMap[tableMapIndex];
+    int16_t memberIndex           = tableMap->Find(memberKey);
     if (!tableMap->IsValidIndex(memberIndex))
     {
         Warning("schema::GetOffset(): '%s' was not found in '%s'!\n", memberName, className);

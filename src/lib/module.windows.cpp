@@ -4,12 +4,13 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <spdlog/spdlog.h>
 
 #include "address.hpp"
 #include "module.hpp"
 
 #include "fnv1a_hash.hpp"
-/*#include "logger.hpp"*/
+
 #include "pattern.hpp"
 
 #include <Windows.h>
@@ -87,9 +88,8 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
     {
         std::ifstream stream(it->first, std::ios::in | std::ios::binary);
         if (!stream.good())
-        {
             return;
-        }
+
         disk_data.reserve(std::filesystem::file_size(path));
         disk_data.assign((std::istreambuf_iterator(stream)), std::istreambuf_iterator<char>());
     }
@@ -100,28 +100,31 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
     {
         const auto is_executable = (section->Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0;
         const auto is_readable = (section->Characteristics & IMAGE_SCN_MEM_READ) != 0;
-        if (is_executable && is_readable)
+        const auto is_writable = (section->Characteristics & IMAGE_SCN_MEM_WRITE) != 0;
+
+        const auto start = this->_base_address + section->VirtualAddress;
+        const auto size = std::min(section->SizeOfRawData, section->Misc.VirtualSize);
+
+        auto& segment = _segments.emplace_back();
+        segment.address = start;
+        if (is_executable)
+            segment.flags |= SegmentFlags::FLAG_X;
+        if (is_readable)
+            segment.flags |= SegmentFlags::FLAG_R;
+        if (is_writable)
+            segment.flags |= SegmentFlags::FLAG_W;
+
+        if (read_from_disk && is_executable)
         {
-            const auto start = this->_base_address + section->VirtualAddress;
-            const auto size = std::min(section->SizeOfRawData, section->Misc.VirtualSize);
-
-            auto& segment = _segments.emplace_back();
-
-            if (!read_from_disk)
-            {
-                segment.address = start;
-                const auto data = reinterpret_cast<std::uint8_t*>(start);
-                segment.data = std::vector(&data[0], &data[size]);
-                continue;
-            }
-
             if (auto original_bytes = GetOriginalBytes(disk_data, start - _base_address, size))
             {
                 segment.data = original_bytes.value();
                 continue;
             }
-            // TODO: log
         }
+
+        const auto data = reinterpret_cast<std::uint8_t*>(start);
+        segment.data = std::vector(&data[0], &data[size]);
     }
 
     DumpExports(reinterpret_cast<void*>(_base_address));
@@ -131,6 +134,9 @@ Address Module::FindPattern(std::string_view pattern) const
 {
     for (auto&& segment : _segments)
     {
+        if ((segment.flags & SegmentFlags::FLAG_X) == 0)
+            continue;
+
         if (auto result = pattern::find(segment.data, pattern))
         {
             if (_find_pattern_callback)
@@ -140,6 +146,89 @@ Address Module::FindPattern(std::string_view pattern) const
                 return segment.address + result.ptr;
         }
     }
+
+    return { };
+}
+
+Address Module::FindString(const std::string& str, bool read_only) const
+{
+    for (auto&& segment : _segments)
+    {
+        if ((segment.flags & SegmentFlags::FLAG_X) != 0)
+            continue;
+
+        if (read_only && (segment.flags & SegmentFlags::FLAG_W) != 0)
+            continue;
+
+        const auto& data = segment.data;
+
+        if (auto result = pattern::impl::find_str(const_cast<std::uint8_t*>(data.data()), data.size(), str, true))
+        {
+            if (_find_pattern_callback)
+                _find_pattern_callback(str, result, _base_address);
+
+            if (result.is_valid())
+                return segment.address + result.ptr;
+        }
+    }
+
+    return { };
+}
+
+Address Module::FindPtr(std::uintptr_t ptr, std::uint8_t size) const
+{
+    auto ptr_bytes = reinterpret_cast<std::uint8_t*>(&ptr);
+
+    for (auto&& segment : _segments)
+    {
+        if ((segment.flags & SegmentFlags::FLAG_X) != 0)
+            continue;
+
+        const auto& data = segment.data;
+        auto result = pattern::impl::find_ptr(const_cast<std::uint8_t*>(data.data()), data.size(), ptr_bytes, size);
+        {
+            if (result.is_valid())
+                return segment.address + result.ptr;
+        }
+    }
+
+    return { };
+}
+
+Address Module::FindVtable(const std::string& name)
+{
+    auto vtable_name = std::format(".?AV{}@@", name);
+    auto type_descriptor = FindString(vtable_name, false);
+    if (!type_descriptor.is_valid())
+    {
+        spdlog::error("Cannot find vtable: {}", vtable_name);
+        return { };
+    }
+
+    spdlog::info("{:#x}, {:#x}", type_descriptor.ptr, type_descriptor.ptr - _base_address);
+    type_descriptor = type_descriptor.offset(-0x10);
+    std::uint32_t rtti_rva = type_descriptor.ptr - _base_address;
+
+    auto complete_object_locator = FindPtr(rtti_rva, 4);
+
+    if (!complete_object_locator.is_valid())
+    {
+        spdlog::error("complete_object_locator is invalid");
+        return { };
+    }
+
+    spdlog::info("complete_object_locator: {:#x}", complete_object_locator.ptr - _base_address);
+    // check for header offset
+    auto header = complete_object_locator.offset(-0xC);
+    if (header.deref().cast<std::int32_t>() != 1)
+        return { };
+    // check for vtable offset
+    if (complete_object_locator.offset(-0x8).deref().cast<std::int32_t>() != 0)
+        return { };
+
+    auto vtable = FindPtr(header.ptr);
+    if (vtable.is_valid())
+        return vtable.offset(8);
 
     return { };
 }
@@ -230,11 +319,6 @@ Module::GetOriginalBytes(const std::vector<std::uint8_t>& disk_data, std::uintpt
     std::vector<std::uint8_t> result{&disk_bytes[0], &disk_bytes[size]};
 
     return result;
-}
-
-Address Module::FindVTableByName(std::string_view name)
-{
-    
 }
 
 #endif

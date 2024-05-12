@@ -6,9 +6,9 @@ namespace mods
 {
     void Init();
 
-    inline Module server{};
-    inline Module engine{};
-    inline Module tier0{};
-    inline Module network{};
-    inline Module schema_system{};
+    inline Module server {};
+    inline Module engine {};
+    inline Module tier0 {};
+    inline Module network {};
+    inline Module schema_system {};
 }

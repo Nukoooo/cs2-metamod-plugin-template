@@ -9,12 +9,6 @@
 
 namespace pattern
 {
-    enum Status
-    {
-        InvalidPattern = 0,
-        NoResult = 1,
-    };
-
     namespace impl
     {
         using HexData = std::optional<std::uint8_t>;
@@ -31,7 +25,7 @@ namespace pattern
             return std::nullopt;
         }
 
-        template <char Wildcard = '?'>
+        template<char Wildcard = '?'>
         [[nodiscard]] static constexpr std::optional<std::uint8_t> parse_hex(std::string_view str) noexcept
         {
             if (str.size() == 1 && str.front() == Wildcard)
@@ -41,7 +35,7 @@ namespace pattern
                 return std::nullopt;
 
             auto high = hex_char_to_byte(str[0]);
-            auto low  = hex_char_to_byte(str[1]);
+            auto low = hex_char_to_byte(str[1]);
 
             // if both are not wildcard, e.g AA
             if (high.has_value() && low.has_value())
@@ -65,10 +59,10 @@ namespace pattern
             */
         }
 
-        template <char Delimiter = ' ', char Wildcard = '?'>
+        template<char Delimiter = ' ', char Wildcard = '?'>
         [[nodiscard]] static constexpr std::vector<HexData> parse_pattern(std::string_view pattern) noexcept
         {
-            std::vector<HexData> result{};
+            std::vector<HexData> result{ };
             for (const auto& str : pattern | std::views::split(Delimiter))
             {
                 const std::string_view token(str);
@@ -78,27 +72,27 @@ namespace pattern
         }
 
         // https://stackoverflow.com/a/73014828
-        template <auto N>
-        static constexpr auto str(const char (&cstr)[N]) noexcept
+        template<auto N>
+        static constexpr auto str(const char (& cstr)[N]) noexcept
         {
             std::array<char, N> arr;
             for (std::size_t i = 0; i < N; ++i)
-                arr[i]         = cstr[i];
+                arr[i] = cstr[i];
             return arr;
         }
 
-        template <auto str>
+        template<auto str>
         constexpr auto make_pattern() noexcept
         {
-            const auto sig      = impl::parse_pattern(str.data());
+            const auto sig = impl::parse_pattern(str.data());
             constexpr auto size = impl::parse_pattern(str.data()).size();
-            std::array<HexData, size> arr{};
+            std::array<HexData, size> arr{ };
             for (std::size_t i = 0; i < size; i++)
-                arr[i]         = sig[i];
+                arr[i] = sig[i];
             return arr;
         }
 
-        template <char Delimiter = ' ', char Wildcard = '?'>
+        template<char Delimiter = ' ', char Wildcard = '?'>
         struct Pattern
         {
             explicit constexpr Pattern(std::string_view pattern)
@@ -124,9 +118,7 @@ namespace pattern
 
         Address find_std(std::uint8_t* data, std::size_t size, const std::vector<HexData>& pattern) noexcept;
         Address find_str(std::uint8_t* data, std::size_t size, const std::string& str, bool zero_terminated = false) noexcept;
-        Address find_ptr(std::uint8_t* data, std::size_t size, std::uintptr_t ptr) noexcept;
-        Address find_ptr(std::uint8_t* data, std::size_t size, std::uint8_t* ptr) noexcept;
-
+        Address find_ptr(std::uint8_t* data, std::size_t size, std::uint8_t* ptr, std::uint8_t ptr_size = sizeof(void*)) noexcept;
     }
 
     Address find(const std::vector<std::uint8_t>& data, const impl::Pattern<>& pattern) noexcept;

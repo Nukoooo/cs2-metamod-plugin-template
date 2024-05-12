@@ -15,9 +15,9 @@ enum SegmentFlags : std::int32_t
     FLAG_X = 1 << 2,
 };
 
-inline constexpr SegmentFlags operator| (SegmentFlags a, SegmentFlags b)
+inline constexpr SegmentFlags operator|(SegmentFlags a, SegmentFlags b)
 {
-    return SegmentFlags((int)(a) | (int)(b));
+    return SegmentFlags((int) (a) | (int) (b));
 }
 
 struct Segments
@@ -28,9 +28,9 @@ struct Segments
     Segments& operator=(const Segments&) = delete;
     Segments& operator=(Segments&&) = delete;
 
-    std::int32_t flags;
-    std::uintptr_t address{};
-    std::vector<std::uint8_t> data{};
+    std::int32_t flags{ };
+    std::uintptr_t address{ };
+    std::vector<std::uint8_t> data{ };
 };
 
 class Module
@@ -55,14 +55,7 @@ class Module
     Module& operator=(const Module&) = default;
     Module& operator=(Module&&) = default;
 
-    explicit Module(std::string_view str, bool read_from_disk = false,
-                    const FindPatternCallbackFn& find_pattern_callback = nullptr);
-
-    // get rwx segments of a module
-    [[nodiscard]] const std::vector<Segments>& GetSegments() const
-    {
-        return _segments;
-    }
+    explicit Module(std::string_view str, bool read_from_disk = false, const FindPatternCallbackFn& find_pattern_callback = nullptr);
 
     // get base address of a module
     [[nodiscard]] std::uintptr_t Base() const
@@ -77,18 +70,14 @@ class Module
 
     [[nodiscard]] Address FindPattern(std::string_view pattern) const;
     [[nodiscard]] Address FindString(const std::string& str, bool read_only) const;
-    [[nodiscard]] Address FindPtr(std::uintptr_t ptr) const;
+    [[nodiscard]] Address FindPtr(std::uintptr_t ptr, std::uint8_t size = sizeof(std::uintptr_t)) const;
     [[nodiscard]] Address FindVtable(const std::string& name);
 
     [[nodiscard]] void* GetProc(std::string_view proc_name) const;
-
     [[nodiscard]] void* GetProc(std::uint64_t proc_name_hash) const;
-
-    [[nodiscard]] Address FindVTableByName(std::string_view name);
 
   private:
     void DumpExports(void* module_base);
 
-    std::optional<std::vector<std::uint8_t>>
-    GetOriginalBytes(const std::vector<std::uint8_t>& disk_data, std::uintptr_t rva, std::size_t size);
+    std::optional<std::vector<std::uint8_t>> GetOriginalBytes(const std::vector<std::uint8_t>& disk_data, std::uintptr_t rva, std::size_t size);
 };

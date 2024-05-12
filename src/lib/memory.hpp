@@ -6,7 +6,7 @@
 class Memory
 {
   public:
-    template<size_t Index>
+    template <size_t Index>
     static Address GetVFuncAddress(Address vtable)
     {
         return vtable.deref().cast<uintptr_t*>()[Index];
@@ -18,28 +18,28 @@ class Memory
     }
 
 #ifdef _WIN32
-    template<typename T, size_t Index, typename... Args>
+    template <typename T, size_t Index, typename... Args>
     static T VirtualCall(void* vtable, Args... args)
     {
         using fn = T(__thiscall*)(void*, decltype(args)...);
         return GetVFuncAddress<Index>(vtable).template cast<fn>()(vtable, args...);
     }
 
-    template<typename T, size_t Index, typename... Args>
+    template <typename T, size_t Index, typename... Args>
     static T VirtualCdeclCall(void* vtable, Args... args)
     {
         using fn = T(__cdecl*)(void*, decltype(args)...);
         return GetVFuncAddress<Index>(vtable).template cast<fn>()(vtable, args...);
     }
 
-    template<typename T, typename... Args>
+    template <typename T, typename... Args>
     static T VirtualCall(void* vtable, std::size_t index, Args... args)
     {
         using fn = T(__thiscall*)(void*, decltype(args)...);
         return GetVFuncAddress(vtable, index).template cast<fn>()(vtable, args...);
     }
 
-    template<typename T, typename... Args>
+    template <typename T, typename... Args>
     static T VirtualCdeclCall(void* vtable, std::size_t index, Args... args)
     {
         using fn = T(__cdecl*)(void*, decltype(args)...);
@@ -54,10 +54,10 @@ class Memory
         return GetVFuncAddress<Index>(vtable).template cast<fn>()(vtable, args...);
     }
 
-    template<typename T, typename... Args>
+    template <typename T, typename... Args>
     static T VirtualCall(void* vtable, std::size_t index, Args... args)
     {
-        using fn = T(*)(void*, decltype(args)...);
+        using fn = T (*)(void*, decltype(args)...);
         return GetVFuncAddress(vtable, index).template cast<fn>()(vtable, args...);
     }
 #endif

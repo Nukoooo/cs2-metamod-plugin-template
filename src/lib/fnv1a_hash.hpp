@@ -24,7 +24,7 @@ template <>
 struct fnv1a_traits<32>
 {
     static constexpr bool Supported = true;
-    using Type = uint32_t;
+    using Type                      = uint32_t;
 
     static constexpr Type Prime  = 0x1000193;
     static constexpr Type Offset = 0x811c9dc5;
@@ -35,7 +35,7 @@ template <>
 struct fnv1a_traits<64>
 {
     static constexpr bool Supported = true;
-    using Type = uint64_t;
+    using Type                      = uint64_t;
 
     static constexpr Type Prime  = 0x100000001b3;
     static constexpr Type Offset = 0xcbf29ce484222325;
@@ -176,9 +176,9 @@ namespace strhash_lower
     template <typename T>
     class _lowercase_container
     {
-    public:
+      public:
         constexpr _lowercase_container(const T& container)
-            : _container(container)
+         : _container(container)
         {
         }
 
@@ -190,7 +190,7 @@ namespace strhash_lower
             return c >= 'A' && c <= 'Z' ? (c + 'a' - 'A') : c;
         }
 
-    private:
+      private:
         const T& _container;
     };
 
