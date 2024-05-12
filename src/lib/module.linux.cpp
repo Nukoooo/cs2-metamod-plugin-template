@@ -1,8 +1,12 @@
+#include <bit>
+#include <cstdint>
+#include <vector>
 #ifdef LINUX
 #include <algorithm>
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <iostream>
 
 #include <elf.h>
 #include <link.h>
@@ -14,7 +18,7 @@
 /*#include "logger.hpp"*/
 #include "pattern.hpp"
 
-std::vector<std::pair<std::string, dl_phdr_info *>> module_list{};
+std::vector<std::pair<std::string, dl_phdr_info>> module_list{};
 
 Module::Module(std::string_view str, bool read_from_disk, const FindPatternCallbackFn &find_pattern_callback)
 {
@@ -31,10 +35,10 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
         {
             std::string name = info->dlpi_name;
 
-            if (name.rfind(".so") != std::string::npos)
+            if (name.rfind(".so") == std::string::npos)
                 return 0;
 
-            if (name.find("csgo/addons") != std::string::npos)
+            if (name.find("/addons/") != std::string::npos)
                 return 0;
 
             constexpr std::string_view ROOTBIN = "/bin/linuxsteamrt64/";
@@ -48,7 +52,7 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
             auto &mod_info = module_list.emplace_back();
 
             mod_info.first = name;
-            mod_info.second = info;
+            mod_info.second = *info;
             return 0;
         },
         nullptr);
@@ -57,19 +61,23 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
     const auto it = std::ranges::find_if(module_list,
                                          [&](const auto &i)
                                          {
-                                             auto mod_name = i.first.substr(i.first.find_last_of('/'));
-                                             std::ranges::transform(mod_name, mod_name.begin(), tolower);
+                                             auto mod_name = i.first.substr(i.first.find_last_of('/') + 1);
                                              return mod_name.find(mod) != std::string::npos;
                                          });
 
     if (it == module_list.end())
-        throw std::runtime_error(std::format("Cannot find any module name that contains {}", mod));
+    {
+        std::cout << std::format("Cannot find any module name that contains {}", mod) << std::endl;
+        return;
+    }
 
     const std::string_view path = it->first;
     const auto info = it->second;
 
-    this->_base_address = info->dlpi_addr;
+    this->_base_address = info.dlpi_addr;
     this->_module_name = path.substr(path.find_last_of('/') + 1);
+
+    std::cout << std::format("{:#x}, {:#x}\n", (uintptr_t)info.dlpi_phdr, _base_address);
 
     std::vector<std::uint8_t> disk_data{};
     if (read_from_disk)
@@ -83,11 +91,37 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
         disk_data.assign((std::istreambuf_iterator(stream)), std::istreambuf_iterator<char>());
     }
 
-    for (auto i = 0; i < info->dlpi_phnum; i++)
+    // {
+
+    //     auto *ehdr = (ElfW(Ehdr) *)disk_data.data();
+    //     auto *shdr = (ElfW(Shdr) *)(disk_data.data() + ehdr->e_shoff);
+    //     int shnum = ehdr->e_shnum;
+    //     auto *sh_strtab = &shdr[ehdr->e_shstrndx];
+    //     std::cout << std::format("{}, {:#x}, {:#x}\n", shnum, ehdr->e_shstrndx, sh_strtab->sh_offset);
+
+    //     const char *const sh_strtab_p = (const char* const)(disk_data.data() + sh_strtab->sh_offset);
+
+    //     for (int i = 0; i < shnum; ++i)
+    //     {
+    //         std::cout << std::format("{}, {}, {:#x}\n",i,sh_strtab_p+ shdr[i].sh_name,shdr[i].sh_addr);
+    //     }
+
+    // }
+
+    for (auto i = 0; i < info.dlpi_phnum; i++)
     {
-        auto address = _base_address + info->dlpi_phdr[i].p_paddr;
-        auto type = info->dlpi_phdr[i].p_type;
+        auto address = _base_address + info.dlpi_phdr[i].p_paddr;
+        auto size = info.dlpi_phdr[i].p_filesz;
+
+        auto type = info.dlpi_phdr[i].p_type;
         auto is_dynamic_section = type == PT_DYNAMIC;
+
+        auto flags = info.dlpi_phdr[i].p_flags;
+
+        auto is_executable = (flags & PF_X) != 0;
+        auto is_readable = (flags & PF_R) != 0;
+        auto is_writable = (flags & PF_W) != 0;
+
         if (is_dynamic_section)
         {
             DumpExports(reinterpret_cast<void *>(address));
@@ -97,34 +131,39 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
         if (type != PT_LOAD)
             continue;
 
-        auto flags = info->dlpi_phdr[i].p_flags;
-
-        auto is_executable = (flags & PF_X) != 0;
-        auto is_readable = (flags & PF_R) != 0;
-
-        if (!is_executable || !is_readable)
+        if (info.dlpi_phdr[i].p_paddr == 0)
             continue;
 
-        auto size = info->dlpi_phdr[i].p_filesz;
+        std::cout << std::format("{:#x}, size: {}, end: {:#x}, type: {}, R: {}, W: {}, X: {}\n", info.dlpi_phdr[i].p_paddr, size, info.dlpi_phdr[i].p_paddr + size, type, is_readable,
+                                 is_writable, is_executable);
+        // if (!is_executable || !is_readable)
+        //     continue;
+
         auto *data = reinterpret_cast<std::uint8_t *>(address);
 
         auto &segment = _segments.emplace_back();
 
         segment.address = address;
         segment.data.reserve(size);
+        if (is_executable)
+            segment.flags |= SegmentFlags::FLAG_X;
+        if (is_readable)
+            segment.flags |= SegmentFlags::FLAG_R;
+        if (is_writable)
+            segment.flags |= SegmentFlags::FLAG_W;
 
-        if (!read_from_disk)
+        if (read_from_disk && is_executable)
         {
-            segment.data.assign(&data[0], &data[size]);
-            continue;
-
-            return;
+            if (auto bytes = GetOriginalBytes(disk_data, address - _base_address, size))
+            {
+                segment.data = bytes.value();
+                continue;
+            }
+            std::cout << "Failed to read bytes from disk, reading bytes in memory." << std::endl;
         }
 
-        if (auto bytes = GetOriginalBytes(disk_data, address - _base_address, size))
-        {
-            segment.data = bytes.value();
-        }
+        segment.data.assign(&data[0], &data[size]);
+        continue;
     }
 }
 
@@ -132,6 +171,9 @@ Address Module::FindPattern(std::string_view pattern) const
 {
     for (auto &&segment : _segments)
     {
+        if ((segment.flags & SegmentFlags::FLAG_X) == 0)
+            continue;
+
         if (auto result = pattern::find(segment.data, pattern))
         {
             if (_find_pattern_callback)
@@ -141,6 +183,82 @@ Address Module::FindPattern(std::string_view pattern) const
                 return segment.address + result.ptr;
         }
     }
+
+    return {};
+}
+
+
+Address Module::FindString(const std::string &str, bool read_only) const
+{
+    for (auto &&segment : _segments)
+    {
+        if ((segment.flags & SegmentFlags::FLAG_X) != 0)
+            continue;
+
+        if (read_only && (segment.flags & SegmentFlags::FLAG_W) != 0)
+            continue;
+
+        std::cout << std::format("Write: {}, Read: {}\n", (segment.flags & SegmentFlags::FLAG_W) != 0, (segment.flags & SegmentFlags::FLAG_R) != 0);
+
+        const auto &data = segment.data;
+
+        if (auto result = pattern::impl::find_str(const_cast<std::uint8_t *>(data.data()), data.size(), str, true))
+        {
+            if (_find_pattern_callback)
+                _find_pattern_callback(str, result, _base_address);
+
+            if (result.is_valid())
+                return segment.address + result.ptr;
+        }
+    }
+
+    return {};
+}
+
+Address Module::FindPtr(std::uintptr_t ptr) const
+{
+    std::uint8_t *ptr_bytes = (std::uint8_t *)(&ptr);
+
+    for (auto &&segment : _segments)
+    {
+        if ((segment.flags & SegmentFlags::FLAG_X) != 0)
+            continue;
+
+        const auto &data = segment.data;
+        auto result = pattern::impl::find_ptr(const_cast<std::uint8_t *>(data.data()), data.size(), ptr_bytes);
+        {
+            std::cout << std::format("{:#x}\n", result.ptr);
+            if (result.is_valid())
+                return segment.address + result.ptr;
+        }
+    }
+
+    return {};
+}
+
+Address Module::FindVtable(const std::string &name)
+{
+    auto decoreated_name = std::to_string(name.length()) + name;
+    auto type_info_name = FindString(decoreated_name, true);
+    if (!type_info_name.is_valid())
+    {
+        std::cout << "Cannot find " << decoreated_name << "\n";
+        return {};
+    }
+
+    auto reference_type = FindPtr(type_info_name.ptr);
+
+    if (!reference_type.is_valid())
+    {
+        return {};
+    }
+
+    auto type_info = reference_type.offset(-8);
+    auto reference = FindPtr(type_info.ptr);
+    if (reference.is_valid())
+        return reference.offset(8);
+    
+    std::cout << "Cannot ptr to " << decoreated_name << "\n";
 
     return {};
 }
@@ -278,9 +396,3 @@ std::optional<std::vector<std::uint8_t>> Module::GetOriginalBytes(const std::vec
     return result;
 }
 #endif
-
-struct filter
-{
-    void *vtable;
-    void *func;
-};

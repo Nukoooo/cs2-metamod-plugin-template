@@ -22,21 +22,10 @@ endif()
 git = "https://github.com/TartanLlama/expected"
 tag = "3f0ca7b19253129700a073abfa6d8638d9f7c80c"
 
-[target.safetyhook]
-type = "static"
-sources = ["safetyhook/safetyhook.cpp", "safetyhook/Zydis.c"]
-include-directories = ["safetyhook/safetyhook.hpp", "safetyhook/Zydis.h"]
-compile-features = ["cxx_std_20"]
-link-libraries = ["tl::expected"]
-alias = "safetyhook::safetyhook"
-msvc.private-compile-options = ["/permissive-", "/W4", "/w14640"]
-clang.private-compile-options = ["-Wall", "-Wextra", "-Wshadow", "-Wnon-virtual-dtor", "-pedantic"]
-gcc.private-compile-options = ["-Wall", "-Wextra", "-Wshadow", "-Wnon-virtual-dtor", "-pedantic"]
-cmake-after = """
-if(SAFETYHOOK_USE_CXXMODULES)
-    target_compile_definitions(safetyhook INTERFACE SAFETYHOOK_USE_CXXMODULES)
-endif()
-"""
+[fetch-content.safetyhook]
+git = "https://github.com/cursey/safetyhook"
+tag = "4faf792c2d66cbf06f2c942561d053aafd79006b"
+
 
 [fetch-content.spdlog]
 git = "https://github.com/gabime/spdlog"
@@ -90,7 +79,7 @@ sources = [
   "src/**.hpp",
   "src/**.h",
 ]
-include-directories = ["safetyhook"]
+# include-directories = ["safetyhook"]
 compile-features = ["cxx_std_23"]
 windows.compile-definitions = ["WIN32", "WINDOWS"]
 linux.compile-definitions = ["LINUX", "POSIX", "_LINUX", "PLATFORM_64BITS"]
