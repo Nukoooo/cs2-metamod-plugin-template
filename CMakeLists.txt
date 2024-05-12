@@ -46,24 +46,6 @@ include(FetchContent)
 if(POLICY CMP0135)
 	cmake_policy(SET CMP0135 NEW)
 endif()
-message(STATUS "Fetching expected (3f0ca7b19253129700a073abfa6d8638d9f7c80c)...")
-FetchContent_Declare(expected SYSTEM
-	GIT_REPOSITORY
-		"https://github.com/TartanLlama/expected"
-	GIT_TAG
-		3f0ca7b19253129700a073abfa6d8638d9f7c80c
-)
-FetchContent_MakeAvailable(expected)
-
-message(STATUS "Fetching safetyhook (4faf792c2d66cbf06f2c942561d053aafd79006b)...")
-FetchContent_Declare(safetyhook SYSTEM
-	GIT_REPOSITORY
-		"https://github.com/cursey/safetyhook"
-	GIT_TAG
-		4faf792c2d66cbf06f2c942561d053aafd79006b
-)
-FetchContent_MakeAvailable(safetyhook)
-
 message(STATUS "Fetching spdlog (v1.14.1)...")
 FetchContent_Declare(spdlog SYSTEM
 	GIT_REPOSITORY
@@ -241,7 +223,7 @@ if((CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_FRONTEND_VA
 endif()
 
 target_compile_features(plugin PUBLIC
-	cxx_std_23
+	cxx_std_20
 )
 
 if(MSVC) # msvc
@@ -281,7 +263,6 @@ endif()
 target_link_libraries(plugin PUBLIC
 	hl2sdk::hl2sdk
 	mmsdk::mmsdk
-	safetyhook::safetyhook
 	spdlog::spdlog
 	libprotobuf
 )

@@ -48,7 +48,7 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
             std::ranges::replace(name, '\\', '/');
 
             // only need game dlls, do not need plugin (including metamod) dlls
-            if (!name.contains("game/") || name.contains("addons"))
+            if (name.find("game/") == std::string::npos || name.find("addons") != std::string::npos)
                 continue;
 
             auto& mod_info = module_list.emplace_back();

@@ -4,7 +4,6 @@
 #include <optional>
 #include <vector>
 #include <array>
-#include <expected>
 #include <ranges>
 
 namespace pattern
@@ -65,7 +64,7 @@ namespace pattern
             std::vector<HexData> result{ };
             for (const auto& str : pattern | std::views::split(Delimiter))
             {
-                const std::string_view token(str);
+                const std::string_view token(str.begin(), str.end());
                 result.push_back(parse_hex<Wildcard>(token));
             }
             return result;
