@@ -42,8 +42,8 @@ Address pattern::impl::find_std(std::uint8_t* data, std::size_t size, const std:
 Address pattern::impl::find_str(std::uint8_t* data, std::size_t size, const std::string& str, bool zero_terminated) noexcept
 {
     std::uint8_t* end = data + size;
-    auto str_data     = (uint8_t*)str.c_str();
-    auto str_size     = str.size() + (zero_terminated ? 1 : 0);
+    const auto str_data     = (uint8_t*)str.c_str();
+    const auto str_size     = str.size() + (zero_terminated ? 1 : 0);
 
     for (std::uint8_t* current = data; current <= end; ++current)
     {
@@ -66,8 +66,6 @@ Address pattern::impl::find_str(std::uint8_t* data, std::size_t size, const std:
 Address pattern::impl::find_ptr(std::uint8_t* data, std::size_t size, std::uint8_t* ptr, std::uint8_t ptr_size) noexcept
 {
     std::uint8_t* end = data + size;
-
-    auto* current = data;
 
     for (std::uint8_t* current = data; current <= end; ++current)
     {

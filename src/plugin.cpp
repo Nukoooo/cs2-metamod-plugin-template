@@ -42,7 +42,7 @@ Plugin::~Plugin() = default;
 CGameEntitySystem* GameEntitySystem()
 {
     static int offset = g_pGameConfig->GetOffset("GameEntitySystem");
-    return *reinterpret_cast<CGameEntitySystem**>((uintptr_t) (g_pGameResourceServiceServer) + offset);
+    return *reinterpret_cast<CGameEntitySystem**>(reinterpret_cast<uintptr_t>(g_pGameResourceServiceServer) + offset);
 }
 
 bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool late)

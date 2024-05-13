@@ -212,7 +212,6 @@ Address Module::FindVtable(const std::string& name)
         return {};
     }
 
-    spdlog::info("{:#x}, {:#x}", type_descriptor.ptr, type_descriptor.ptr - _base_address);
     type_descriptor = type_descriptor.offset(-0x10);
     std::uint32_t rtti_rva = type_descriptor.ptr - _base_address;
 

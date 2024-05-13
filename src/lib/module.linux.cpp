@@ -1,7 +1,7 @@
 #ifdef LINUX
 #include <algorithm>
 #include <filesystem>
-#include <format>
+#include <spdlog/spdlog.h>
 #include <fstream>
 #include <iostream>
 #include <bit>
@@ -66,7 +66,7 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
 
     if (it == module_list.end())
     {
-        std::cout << std::format("Cannot find any module name that contains {}", mod) << std::endl;
+        spdlog::error("Cannot find any module name that contains {}", mod);
         return;
     }
 
@@ -75,8 +75,6 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
 
     this->_base_address = info.dlpi_addr;
     this->_module_name  = path.substr(path.find_last_of('/') + 1);
-
-    std::cout << std::format("{:#x}, {:#x}\n", (uintptr_t)info.dlpi_phdr, _base_address);
 
     std::vector<std::uint8_t> disk_data {};
     if (read_from_disk)
@@ -136,7 +134,7 @@ void Module::GetModuleInfo(std::string_view mod, bool read_from_disk)
                 segment.data = bytes.value();
                 continue;
             }
-            std::cout << "Failed to read bytes from disk, reading bytes in memory." << std::endl;
+            spdlog::error("[{}] Failed to copy bytes in executable section from file, copyting bytes from memory.", _module_name);
         }
 
         segment.data.assign(&data[0], &data[size]);
@@ -174,8 +172,6 @@ Address Module::FindString(const std::string& str, bool read_only) const
         if (read_only && (segment.flags & SegmentFlags::FLAG_W) != 0)
             continue;
 
-        std::cout << std::format("Write: {}, Read: {}\n", (segment.flags & SegmentFlags::FLAG_W) != 0, (segment.flags & SegmentFlags::FLAG_R) != 0);
-
         const auto& data = segment.data;
 
         if (auto result = pattern::impl::find_str(const_cast<std::uint8_t*>(data.data()), data.size(), str, true))
@@ -202,11 +198,8 @@ Address Module::FindPtr(std::uintptr_t ptr, std::uint8_t size) const
 
         const auto& data = segment.data;
         auto result      = pattern::impl::find_ptr(const_cast<std::uint8_t*>(data.data()), data.size(), ptr_bytes, size);
-        {
-            std::cout << std::format("{:#x}\n", result.ptr);
-            if (result.is_valid())
-                return segment.address + result.ptr;
-        }
+        if (result.is_valid())
+            return segment.address + result.ptr;
     }
 
     return {};
@@ -218,7 +211,7 @@ Address Module::FindVtable(const std::string& name)
     auto type_info_name  = FindString(decoreated_name, true);
     if (!type_info_name.is_valid())
     {
-        std::cout << "Cannot find " << decoreated_name << "\n";
+        spdlog::error("[{}] Cannot find vtable: {}", _module_name, decoreated_name);
         return {};
     }
 
@@ -226,6 +219,7 @@ Address Module::FindVtable(const std::string& name)
 
     if (!reference_type.is_valid())
     {
+        spdlog::error("[{}] reference_type of vtable \"{}\" is invalid", _module_name, vtable_name);
         return {};
     }
 
@@ -234,7 +228,7 @@ Address Module::FindVtable(const std::string& name)
     if (reference.is_valid())
         return reference.offset(8);
 
-    std::cout << "Cannot ptr to " << decoreated_name << "\n";
+    spdlog::error("[{}] Cannot find refercen to typeinfo for vtable: {}", _module_name, decoreated_name);
 
     return {};
 }
