@@ -27,7 +27,6 @@ endif()
 project(cs2-plugin)
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-set(SAFETYHOOK_FETCH_ZYDIS ON)
 set(protobuf_USE_EXTERNAL_GTEST OFF)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -65,6 +64,28 @@ FetchContent_Declare(protobuf SYSTEM
 		0a02547b680a319e73fd04d9efff88d901c3eaa8
 )
 FetchContent_MakeAvailable(protobuf)
+
+option(ZYDIS_BUILD_EXAMPLES "" OFF)
+option(ZYDIS_BUILD_TOOLS "" OFF)
+option(ZYDIS_BUILD_DOXYGEN "" OFF)
+
+message(STATUS "Fetching Zydis (v4.0.0)...")
+FetchContent_Declare(Zydis SYSTEM
+	GIT_REPOSITORY
+		"https://github.com/zyantific/zydis.git"
+	GIT_TAG
+		v4.0.0
+)
+FetchContent_MakeAvailable(Zydis)
+
+message(STATUS "Fetching expected (3f0ca7b19253129700a073abfa6d8638d9f7c80c)...")
+FetchContent_Declare(expected SYSTEM
+	GIT_REPOSITORY
+		"https://github.com/TartanLlama/expected"
+	GIT_TAG
+		3f0ca7b19253129700a073abfa6d8638d9f7c80c
+)
+FetchContent_MakeAvailable(expected)
 
 # Target: mmsdk
 add_library(mmsdk INTERFACE)
@@ -119,6 +140,7 @@ set(plugin_SOURCES
 	"src/lib/pattern.cpp"
 	"src/modules.cpp"
 	"src/plugin.cpp"
+	"src/safetyhook/safetyhook.cpp"
 	"src/sdk/funcs.cpp"
 	"src/sdk/schema.cpp"
 	"src/protobuf/clientmessages.pb.cc"
@@ -148,6 +170,7 @@ set(plugin_SOURCES
 	"src/lib/simd.hpp"
 	"src/modules.hpp"
 	"src/plugin.hpp"
+	"src/safetyhook/safetyhook.hpp"
 	"src/sdk/funcs.hpp"
 	"src/sdk/schema.hpp"
 	"src/protobuf/clientmessages.pb.h"
@@ -265,4 +288,6 @@ target_link_libraries(plugin PUBLIC
 	mmsdk::mmsdk
 	spdlog::spdlog
 	libprotobuf
+	Zydis
+	tl::expected
 )
