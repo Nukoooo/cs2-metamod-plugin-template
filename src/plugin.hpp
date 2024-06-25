@@ -83,3 +83,11 @@ class Plugin : public ISmmPlugin, public IMetamodListener, public IGameEventList
 };
 
 PLUGIN_GLOBALVARS();
+
+#if defined __WIN32__ || defined _WIN32 || defined WIN32
+#    define PLUGIN_EXPORT extern "C" __declspec(dllexport)
+#else
+#    define PLUGIN_EXPORT extern "C" __attribute__((visibility("default")))
+#endif
+
+PLUGIN_EXPORT void UTIL_PrintToChat(int ent_index, std::string_view content, bool stop_sound = false);

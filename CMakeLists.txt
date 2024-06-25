@@ -28,11 +28,15 @@ project(cs2-plugin)
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(protobuf_USE_EXTERNAL_GTEST OFF)
+set(protobuf_USE_EXTERNAL_GTEST OFF)
+set(protobuf_BUILD_TESTS OFF)
+set(protobuf_BUILD_SHARED_LIBS)
+set(EXPECTED_BUILD_TESTS OFF)
+add_compile_definitions(_ITERATOR_DEBUG_LEVEL=0)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
 endif()
-
 
 if(UNIX AND NOT APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
@@ -46,7 +50,7 @@ if(POLICY CMP0135)
 	cmake_policy(SET CMP0135 NEW)
 endif()
 message(STATUS "Fetching spdlog (v1.14.1)...")
-FetchContent_Declare(spdlog SYSTEM
+FetchContent_Declare(spdlog
 	GIT_REPOSITORY
 		"https://github.com/gabime/spdlog"
 	GIT_TAG
@@ -57,7 +61,7 @@ FetchContent_Declare(spdlog SYSTEM
 FetchContent_MakeAvailable(spdlog)
 
 message(STATUS "Fetching protobuf (0a02547b680a319e73fd04d9efff88d901c3eaa8)...")
-FetchContent_Declare(protobuf SYSTEM
+FetchContent_Declare(protobuf
 	GIT_REPOSITORY
 		"https://github.com/noahbkim/cs2s-protobuf"
 	GIT_TAG
@@ -70,7 +74,7 @@ option(ZYDIS_BUILD_TOOLS "" OFF)
 option(ZYDIS_BUILD_DOXYGEN "" OFF)
 
 message(STATUS "Fetching Zydis (v4.0.0)...")
-FetchContent_Declare(Zydis SYSTEM
+FetchContent_Declare(Zydis
 	GIT_REPOSITORY
 		"https://github.com/zyantific/zydis.git"
 	GIT_TAG
@@ -79,7 +83,7 @@ FetchContent_Declare(Zydis SYSTEM
 FetchContent_MakeAvailable(Zydis)
 
 message(STATUS "Fetching expected (3f0ca7b19253129700a073abfa6d8638d9f7c80c)...")
-FetchContent_Declare(expected SYSTEM
+FetchContent_Declare(expected
 	GIT_REPOSITORY
 		"https://github.com/TartanLlama/expected"
 	GIT_TAG

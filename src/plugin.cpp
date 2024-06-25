@@ -7,9 +7,11 @@
 #include "sdk/schema.hpp"
 #include "gamesystem.hpp"
 
-#include "sdk/entity/ccsplayercontroller.h"
+#include "networksystem/inetworkmessages.h"
 
 #include <spdlog/spdlog.h>
+
+#include "protobuf/usermessages.pb.h"
 
 DEFINE_LOGGING_CHANNEL_NO_TAGS(LOG_CS2S, "Plogon", 0, LV_MAX, Color());
 
@@ -30,7 +32,6 @@ SH_DECL_HOOK3_void(INetworkServerService, StartupServer, SH_NOATTRIB, 0, const G
 
 Plugin g_plugin(LOG_CS2S);
 PLUGIN_EXPOSE(Plugin, g_plugin);
-INetworkGameServer* g_pNetworkGameServer = nullptr;
 
 Plugin::Plugin(const LoggingChannelID_t logging)
 {
@@ -41,8 +42,9 @@ Plugin::~Plugin() = default;
 
 CGameEntitySystem* GameEntitySystem()
 {
-    static int offset = g_pGameConfig->GetOffset("GameEntitySystem");
-    return *reinterpret_cast<CGameEntitySystem**>(reinterpret_cast<uintptr_t>(g_pGameResourceServiceServer) + offset);
+    return nullptr;
+    /*static int offset = g_pGameConfig->GetOffset("GameEntitySystem");
+    return *reinterpret_cast<CGameEntitySystem**>(reinterpret_cast<uintptr_t>(g_pGameResourceServiceServer) + offset);*/
 }
 
 bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool late)
@@ -66,7 +68,7 @@ bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool l
     GET_V_IFACE_ANY(GetEngineFactory, g_pNetworkMessages, INetworkMessages, NETWORKMESSAGES_INTERFACE_VERSION);
     GET_V_IFACE_ANY(GetFileSystemFactory, g_pFullFileSystem, IFileSystem, FILESYSTEM_INTERFACE_VERSION);
 
-    CBufferStringGrowable<256> gamedirpath;
+    /*CBufferStringGrowable<256> gamedirpath;
     g_pEngineServer2->GetGameDir(gamedirpath);
 
     std::string_view gamedirpath_sv = gamedirpath.Get();
@@ -106,14 +108,14 @@ bool Plugin::Load(PluginId id, ISmmAPI* ismm, char* error, size_t maxlen, bool l
         g_pNetworkGameServer = g_pNetworkServerService->GetIGameServer();
         g_pEntitySystem = GameEntitySystem();
         gpGlobals = g_pNetworkGameServer->GetGlobals();
-    }
+    }*/
 
     return true;
 }
 
 bool Plugin::Unload(char* error, size_t maxlen)
 {
-    SH_REMOVE_HOOK(IServerGameDLL, GameFrame, g_pSource2Server, SH_MEMBER(this, &Plugin::Hook_GameFrame), true);
+    /*SH_REMOVE_HOOK(IServerGameDLL, GameFrame, g_pSource2Server, SH_MEMBER(this, &Plugin::Hook_GameFrame), true);
     SH_REMOVE_HOOK(IServerGameClients, ClientActive, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientActive), true);
     SH_REMOVE_HOOK(IServerGameClients, ClientDisconnect, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientDisconnect), true);
     SH_REMOVE_HOOK(IServerGameClients, ClientPutInServer, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientPutInServer), true);
@@ -122,6 +124,7 @@ bool Plugin::Unload(char* error, size_t maxlen)
     SH_REMOVE_HOOK(IServerGameClients, ClientConnect, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientConnect), false);
     SH_REMOVE_HOOK(IServerGameClients, ClientCommand, g_pSource2GameClients, SH_MEMBER(this, &Plugin::Hook_ClientCommand), false);
     SH_REMOVE_HOOK(INetworkServerService, StartupServer, g_pNetworkServerService, SH_MEMBER(this, &Plugin::Hook_StartupServer), true);
+    */
 
     return ISmmPlugin::Unload(error, maxlen);
 }
@@ -137,7 +140,6 @@ void Plugin::Hook_ClientActive(CPlayerSlot slot, bool bLoadGame, const char* psz
 
 void Plugin::Hook_ClientCommand(CPlayerSlot slot, const CCommand& args)
 {
-    CCSPlayerController* player = CCSPlayerController::FromSlot(slot);
     // META_CONPRINTF("Hook_ClientCommand(%d, \"%s\")\n", slot, args.GetCommandString());
 }
 
@@ -190,7 +192,27 @@ void Plugin::OnLevelShutdown()
 
 void Plugin::Hook_StartupServer(const GameSessionConfiguration_t& config, ISource2WorldSession* pSession, const char* pszMapName)
 {
-    g_pNetworkGameServer = g_pNetworkServerService->GetIGameServer();
+    /*g_pNetworkGameServer = g_pNetworkServerService->GetIGameServer();
     g_pEntitySystem = GameEntitySystem();
-    gpGlobals = g_pNetworkGameServer->GetGlobals();
+    gpGlobals = g_pNetworkGameServer->GetGlobals();*/
+}
+
+void UTIL_PrintToChat(int ent_index, std::string_view content, bool stop_sound)
+{
+    
+#define DeclareNetMessage(name, var)                                \
+    const auto net = g_pNetworkMessages->FindNetworkMessagePartial(#name); \
+    if (net == nullptr) [[unlikely]] { spdlog::error("Failed to network message {}", #name); return; }\
+    name var{};
+
+    DeclareNetMessage(CUserMessageSayText2, msg);
+
+    msg.set_chat(!stop_sound);
+    msg.set_entityindex(ent_index);
+    msg.set_messagename(content.data());
+
+    const std::uint8_t bitwide = ent_index;
+    const uint64 clients = 1 << ent_index;
+
+    g_pGameEventSystem->PostEventAbstract(0, false, bitwide, &clients, net, &msg, 0, NetChannelBufType_t::BUF_RELIABLE);\
 }
